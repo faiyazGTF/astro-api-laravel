@@ -1,64 +1,89 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# AstroEra API
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+The backend API for the AstroEra astrology platform, built with Laravel 9 and PHP 8.0. This API powers the mobile and web applications, handling user authentication, astrologer consultations (chat/call), pooja bookings, and more.
 
-## About Laravel
+## 🛠 Technology Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Framework**: Laravel 9.x
+- **Language**: PHP ^8.0
+- **Database**: MySQL
+- **Authentication**: JWT Auth (`tymon/jwt-auth`) & Laravel Passport
+- **Storage**: AWS S3 (`league/flysystem-aws-s3-v3`)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🔌 Key Integrations
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Exotel**: Cloud telephony integration for call masking and session management.
+- **Firebase**: Push notifications for real-time updates (`FireBaseActionController`).
+- **VideoSDK**: For live streaming and video conferencing.
 
-## Learning Laravel
+## 🚀 Installation & Setup
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1. **Clone the repository**
+   ```bash
+   git clone <repository_url>
+   cd astroera-app-api
+   ```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+2. **Install Dependencies**
+   ```bash
+   composer install
+   ```
 
-## Laravel Sponsors
+3. **Environment Configuration**
+   Copy the example environment file and configure your credentials.
+   ```bash
+   cp .env.example .env
+   ```
+   Update the `.env` file with your configuration:
+   - **Database**: `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+   - **AWS S3**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`
+   - **Exotel**: `EXOTEL_SID`, `EXOTEL_TOKEN` (if env variables are used for this)
+   - **Firebase**: Path to service account credentials.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+4. **Generate Application Key**
+   ```bash
+   php artisan key:generate
+   ```
 
-### Premium Partners
+5. **Run Migrations**
+   ```bash
+   php artisan migrate
+   ```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+6. **Serve the Application**
+   ```bash
+   php artisan serve
+   ```
 
-## Contributing
+## 📂 Project Structure
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Routes (`routes/`)
+The routing logic is split into modular files for better organization:
+- **`api.php`**: The entry point for API routes. It dynamically loads routes from subdirectories.
+- **`UserRoutes/*.php`**: Routes specific to end-users (Login, Homepage, Wallet, etc.).
+- **`Pooja/*.php`**: Routes for Pooja bookings and categories.
+- **`astrologer/*.php`**: Routes for the Astrologer dashboard and interactions.
 
-## Code of Conduct
+### key Models (`app/Models/`)
+- **`User/User.php`**: Core user management.
+- **`Astrologer/Astrologer.php`** (implied): Astrologer profiles.
+- **`Payment.php`**: Transaction logs and payment status.
+- **`CallChatRequest.php`**: Manages the state of chat and call sessions between users and astrologers.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 📡 API Overview
 
-## Security Vulnerabilities
+### Authentication
+User authentication is handled via OTP and JWT tokens.
+- `POST /api/user/login`: Login with phone number.
+- `POST /api/user/verify-otp`: Verify OTP and get token.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Features
+- **Consultations**: Real-time logic for initiating and tracking calls/chats.
+- **Webhooks**: `api.php` contains handlers for Exotel callbacks (e.g., `mtstatus`) to track call duration and status.
 
-## License
+## 🧪 Testing
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Run typical Laravel tests if available:
+```bash
+php artisan test
+```
