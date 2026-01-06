@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 // 'middleware' => 'api.auth'
 Route::group(['prefix' => 'user'], function () {
 
-    Route::group(['prefix' => 'kundali'],function () {
+    Route::group(['prefix' => 'kundali'], function () {
 
         Route::post('save', [FreeKundaliController::class, 'SaveFreeKundli']);
         Route::get('get-saved-kundli/{user_id}', [FreeKundaliController::class, 'getSavedKundli']);
@@ -39,7 +39,7 @@ Route::group(['prefix' => 'user'], function () {
 
 
         // report 
-        Route::post('general-report', function(Request $request){
+        Route::post('general-report', function (Request $request) {
             $validator = Validator::make($request->all(), [
                 'full_name' => 'required|min:3',
                 'birth_date' => 'required|date',
@@ -52,19 +52,17 @@ Route::group(['prefix' => 'user'], function () {
 
             ]);
             if ($validator->fails()) {
-              $response=  [
-                    'statusCode'=>403,
-                    'sattus'=>false,
-                    'error'=>$validator->errors()
+                $response =  [
+                    'statusCode' => 403,
+                    'sattus' => false,
+                    'error' => $validator->errors()
                 ];
-                
-            }else{
-            $response=  FreeKundaliController::GeneralReport($request->all());
+            } else {
+                $response =  FreeKundaliController::GeneralReport($request->all());
             }
-    
 
-         return response()->json($response);
 
+            return response()->json($response);
         });
         Route::post('general-report-yoga', [FreeKundaliController::class, 'GeneralReportYoga']);
         Route::post('general-planet-analysis', [FreeKundaliController::class, 'GeneralPlanetAnalysis']);
@@ -76,7 +74,7 @@ Route::group(['prefix' => 'user'], function () {
 
 
         Route::post('/varshaphal', [FreeKundaliController::class, 'varshaphal']);
-    Route::post('kaalsarp-report', [FreeKundaliController::class, 'KaalsarpReport']);
+        Route::post('kaalsarp-report', [FreeKundaliController::class, 'KaalsarpReport']);
 
 
 
@@ -86,5 +84,4 @@ Route::group(['prefix' => 'user'], function () {
 
 
     });
-    
 });
