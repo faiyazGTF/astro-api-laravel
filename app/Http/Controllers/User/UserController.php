@@ -1,0 +1,192 @@
+<?php
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Common\CommonController;
+use App\Http\Controllers\Controller;
+use App\Models\EnquiryModel;
+use App\Models\MobileDevices;
+use App\Models\User\AppVersion;
+use Illuminate\Http\Request;
+use Validator;
+use App\Models\User\User;
+use App\Models\User\UsersDetail;
+
+class UserController extends CommonController
+{
+    //
+    public static $lang='en';
+   public $usermodel;
+    public function __construct()
+    {
+            $this->usermodel=new User();
+    }
+    public function login(Request $request){
+        $request->merge(['user_type' => 'USER']);
+        $response=User::login($request);
+        return $response;
+    }
+
+    public function  logout(Request $request){
+        $response=User::logout($request);
+        return $response;
+    }
+    public function resendOTP(Request $request){
+        $response=User::resendOTP($request);
+        return $response;
+    }
+    public function OtpVerify(Request $request){
+        $response=User::VerifyOtp($request);
+        return $response;
+    }
+    public function getProfile(Request $request,$userid){
+   
+        $response=User::getProfile($request,$userid);
+        return $response;
+    }
+    public function refreshToken(Request $request){
+
+        $response=User::refreshToken($request);
+        return $response;
+    }
+    public function updateProfileImage(Request $request){
+        $response=User::updateProfileImage($request);
+        return $response;
+    }
+    public  function UpdateProfile(Request $request){
+        $response=User::UpdateProfile($request);
+        return $response;
+    }
+	public function defaultProfile(Request $request){
+        $response=User::defaultProfile($request);
+        return $response;
+    }
+    public function FollowAstrologer(Request $request){
+        $response=User::FollowAstrologer($request);
+        return $response;
+    }
+    public function myFollowing(Request $request,$userid){
+
+        $response=User::MyFollowing($request,$userid);
+
+        return ApiResponse(200,true,"success",$response);
+    }
+    public function DeleteAccount(Request $request){
+            
+        $response=User::DeleteAccount($request);
+        return $response;  
+    }
+
+
+    public static function  customerSuppoert(Request $request){
+        $validator = Validator::make($request->all(), [
+            'name' => 'required',
+            'email' => 'required',
+            'mobile' => 'required',
+            'enq_type' => 'required',
+            'description' => 'required',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $postfeedback=EnquiryModel::PostEnquiry($request->name,$request->email,$request->mobile,$request->enq_type,$request->description,'enquiry',$status=0);
+        return $postfeedback;
+
+    }
+    public function ChangePrefferedLanguage(Request $request){
+        try {
+            $validator = Validator::make($request->all(), [
+                'language' => 'required|in:1,2',
+            ]);
+         
+            if ($validator->fails()) {
+                return errorResponse($validator->errors());
+            }
+            $authid = $request->auth_user->id;
+            $data = UsersDetail::where("user_id", $authid)->first();
+            $data->perferrred_language=$request->language;
+            $data->save();
+            return ApiResponse(200,true,'Perferrred Language Updated ',$data);
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+
+    }
+    public function SaveDeviceToken(Request $request)
+    {
+        try {
+        $authid = $request->auth_user->id;
+        $isMobileDevices = MobileDevices::where('user_id', $authid)->get();
+
+        $validator = Validator::make($request->all(), [
+            'token' => 'required',
+            'device_details'=>'required',
+            'status'=>'required',
+            'platform'=>'required',
+            'app_version'=>'required',
+            'last_open'=>'required'
+        ]);
+     
+        if ($validator->fails()) {
+            return errorResponse($validator->errors());
+        }
+
+        if ($isMobileDevices != "") {
+
+            foreach ($isMobileDevices as $mbdevices) {
+
+                $mbd = MobileDevices::where('user_id', $mbdevices->user_id)->delete();
+
+            }
+
+        }
+
+        $store_devices = new MobileDevices();
+        $store_devices->user_id = $authid;
+        $store_devices->token = $request->token;
+        $store_devices->device_details = $request->device_details;
+        $store_devices->status = $request->status;
+        $store_devices->device_platform = $request->platform;
+        $store_devices->app_version = $request->app_version;
+        $store_devices->last_open = $request->last_open;
+        if ($store_devices->save()) {
+            $res = "success";
+            $msg = "";
+        }
+
+        $arr = array(
+
+            'result' => $res,
+            'mesaage' => $msg,
+
+        );
+
+        return ApiResponse(200,true,'Token Updated',$arr);
+
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+
+    }
+
+    public function AppVersion () {    
+        $response = AppVersion::where('type', 'user')->get();
+    
+        return ApiResponse(200,true,"success",$response);
+    }
+	 public function AppVersion2 () {    
+        $response = AppVersion::where('type', 'astrologer')->get();
+    
+        return ApiResponse(200,true,"success",$response);
+    }
+	
+	
+
+}

@@ -1,0 +1,786 @@
+<?php
+
+namespace App\Http\Controllers\Astrologer;
+
+use App\Http\Controllers\ChatAndCallController;
+use App\Http\Controllers\Common\CommonController;
+use App\Http\Controllers\FireBaseActionController;
+use App\Http\Controllers\Controller;
+use App\Models\CallChatRequest;
+use App\Models\ConsultRemedies;
+use App\Models\ConsultRemenies;
+use App\Models\EnquiryModel;
+use App\Models\NoticeBoard;
+use App\Models\User\AppVersion;
+use App\Models\User\AstroGallery;
+use App\Models\User\AstroPriceRange;
+use App\Models\User\FollowModel;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use App\Models\User\User;
+use App\Models\User\UsersDetail;
+use App\Models\User\WalletsModel;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Str;
+use File;
+use App\Models\AstroConferencing;
+
+
+use function PHPUnit\Framework\returnSelf;
+
+class AstrologerController extends CommonController
+{
+    //
+    public static $lang='en';
+   
+    public function login(Request $request){
+       
+        // $request->merge(['user_type' => 'ASTROLOGER']);
+
+        $response=User::astrologin($request);
+        return $response;
+    }
+
+    public function  logout(Request $request){
+        $response=User::logout($request);
+        return $response;
+    }
+    public function resendOTP(Request $request){
+        $response=User::resendOTP($request);
+        return $response;
+    }
+    public function OtpVerify(Request $request){
+        $response=User::VerifyOtp($request);
+        return $response;
+    }
+    public function getProfile(Request $request,$userid){
+
+        $response=User::getProfile($request,$userid);
+        return $response;
+    }
+    public function refreshToken(Request $request){
+
+        $response=User::refreshToken($request);
+        return $response;
+    }
+    public function updateProfileImage(Request $request){
+        $response=User::updateProfileImage($request);
+        return $response;
+    }
+    // pendig 
+    public  function UpdateProfile(Request $request){
+        $response=User::UpdateAstroProfile($request);
+        return $response;
+    }
+    public function FollowAstrologer(Request $request){
+        $response=User::FollowAstrologer($request);
+        return $response;
+    }
+    public function myFollowing(Request $request,$userid){
+
+        $response=User::MyFollowing($request,$userid);
+
+        return ApiResponse(200,true,"success",$response);
+    }
+    public function DeleteAccount(Request $request){
+            
+        $response=User::DeleteAccount($request);
+        return $response;  
+    }
+    public function ChatHistory(Request $request,$cousultId){
+        $result=CallChatRequest::ChatHistory($request,$cousultId);
+        return ApiResponse(200,true,'success',$result);
+    }
+    
+
+
+    public static function  customerSuppoert(Request $request){
+        $validator = Validator::make($request->all(), [
+            'name' => 'required',
+            'email' => 'required',
+            'mobile' => 'required',
+            'enq_type' => 'required',
+            'description' => 'required',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $postfeedback=EnquiryModel::PostEnquiry($request->name,$request->email,$request->mobile,$request->enq_type,$request->description,'enquiry',$status=0);
+        return $postfeedback;
+    }
+
+
+    public function getMinPriceRange () {
+        $checkminprice = AstroPriceRange::first();
+        if($checkminprice){
+            return ApiResponse(200, true, 'Get Astro price range', $checkminprice);
+        }
+    }
+    
+
+    public function UpdatePrice(Request $request){
+        try {
+            $validator = Validator::make($request->all(), [
+                'chat_price' => 'required',
+                'call_price' => 'required',
+                'video_call_price' => 'required',
+            ]);
+            if ($validator->fails()) {
+                return errorResponse($validator->errors());
+            }
+            $authid = $request->auth_user->id;
+            $records = UsersDetail::where("user_id",$authid)->first();
+  
+            $businessValidator = Validator::make([], []); // Empty data and rules initially
+
+            if ($request->call_price > $records->astro_call_charges) {
+                $businessValidator->errors()->add('call_price', 'Call price cannot be higher than astrologer call charges');
+            }
+            if ($request->chat_price > $records->astro_chat_charges) {
+                $businessValidator->errors()->add('chat_price', 'Chat price discount cannot be higher than astrologer chat charges');
+            }
+            if ($request->video_call_price > $records->astro_video_charges) {
+                $businessValidator->errors()->add('video_call_price', 'Video call price discount cannot be higher than astrologer video charges');
+            }
+
+            if ($businessValidator->errors()->any()) {
+                return errorResponse($businessValidator->errors());
+            }
+
+            
+            if ($request->call_price <= $records->astro_call_charges) {
+                $records->disc_call_charge = $request->call_price;
+            }
+            if ($request->chat_price <= $records->astro_chat_charges) {
+                $records->disc_chat_charge = $request->chat_price;
+            }
+            if ($request->video_call_price <= $records->astro_video_charges) {
+                $records->disc_video_charge = $request->video_call_price;
+            }
+
+            // $records->disc_call_charge = $request->call_price;
+            // $records->disc_chat_charge = $request->chat_price;
+            // $records->disc_video_charge = $request->video_call_price;
+            $records->save();
+            return ApiResponse(200,true,'Price Updated Successfully',$records);
+        } catch (\Throwable $th) {
+           return InternalError($th->getMessage());
+        }
+    }
+    public function OnlineUpdate(Request $request){
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:1,0',
+            ]);
+            if ($validator->fails()) {
+                return errorResponse($validator->errors());
+            }
+            $authid = $request->auth_user->id;
+            $records = UsersDetail::where("user_id",$authid)->first();
+    
+            $records->availability = $request->status;
+            $records->save();
+            return SimpleResponse(200,true,'availability Updated Successfuly');
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+    }
+    public function managePromotionalOfferStatus(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:1,0',
+            ]);
+            if ($validator->fails()) {
+                return errorResponse($validator->errors());
+    
+            }
+            $authid = $request->auth_user->id;
+            $obj = UsersDetail::where("user_id", $authid)->first();
+            $obj->is_promotional_accept = $request->status;
+            $obj->save();
+            return SimpleResponse(200,true,'Promotion Details Successfuly');
+
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+    }
+
+
+    public function updateServiceStatus(Request $request)
+    {
+        
+        try {
+            $authid = $request->auth_user->id;
+        $newFlags[] = $request->chat == "true" ? "chat" : "";
+        $newFlags[] = $request->call == "true" ? "call" : "";
+        $newFlags[] = $request->video == "true" ? "video" : "";
+        $astrodata = UsersDetail::where("user_id", $authid)->first();
+        $existingFlags = explode(",", $astrodata->flags);
+        if (in_array("home", $existingFlags)) {
+            $newFlags[] = "home";
+        }
+        if (in_array("webinar", $existingFlags)) {
+            $newFlags[] = "webinar";
+        }
+        $flagCombined = implode(",", array_filter($newFlags));
+        $astrodata->flags = $flagCombined;
+        $astrodata->save();
+        return ApiResponse(200,true,'Service Update Successfully',$newFlags);
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+    }
+
+    
+    public function getCallWaitList(Request $request)
+    {
+        try {
+            $authid = $request->auth_user->id;
+       
+            $callWaitlist = CallChatRequest::leftjoin("users","users.id","=","call_chat_request.user_id")
+                ->leftjoin(
+                    "mst_order_status",
+                    "mst_order_status.order_status_id",
+                    "=",
+                    "call_chat_request.request_status"
+                )
+                ->select(
+                    "call_chat_request.request_session_id",
+                    "users.name as client_name",
+                    "users.image as image",
+                    "mst_order_status.name as status_name",
+                    "call_chat_request.request_type"
+                )
+                ->where("call_chat_request.expert_id", $authid)
+    
+                // ->where('call_chat_request.request_type', $query)
+                ->where("call_chat_request.request_status", 20)
+                ->orderby("call_chat_request.id", "ASC")
+                ->paginate(10)->map(function($item){
+           
+                    $item->image=asset('public/cms-images/user-images/'.$item->image);
+            
+                    return $item;
+            
+                });
+                
+                
+            // $call_count =  RequestCallChat   
+    
+            return ApiResponse(200,true,'succcess',$callWaitlist);
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+    }
+    public function getConsultHistory(Request $request){
+        try {
+            $type = $request->type;
+            $authid = $request->auth_user->id;
+
+            $result=CallChatRequest::join('users','users.id','=','call_chat_request.expert_id')
+            ->join('mst_order_status', 'mst_order_status.order_status_id', '=', 'call_chat_request.request_status')
+               ->join('wallets', function ($join) {
+                $join->on('wallets.transaction_id', '=', 'call_chat_request.request_session_id')
+                     ->whereColumn('wallets.user_id', 'call_chat_request.expert_id'); // Additional condition
+            })
+
+            ->select('call_chat_request.is_promotional','call_chat_request.created_at','call_chat_request.user_chat_charges as total_charges','call_chat_request.request_type as consult_type','call_chat_request.user_name as name','users.id as user_id','call_chat_request.request_session_id as consult_id','call_chat_request.total_duration','call_chat_request.astro_chat_charge','call_chat_request.astro_video_call_charge','call_chat_request.astro_call_chagre','wallets.amount as earn_amount', 'mst_order_status.name as status','wallets.id as wallet_id')
+            ->when($type, function ($query, $type) {
+                $query->where('call_chat_request.request_type', $type);
+
+            })
+            ->where('expert_id',$authid)
+				->groupby('call_chat_request.id')
+				->orderBy('call_chat_request.id', 'DESC')
+				
+				->paginate(10);
+                
+
+                
+            return ApiResponse(200,true,'success',$result);
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+        }
+    }
+    public function getChatData($cousultId){
+        try {
+            $result=CallChatRequest::join('users','users.id','=','call_chat_request.user_id')
+            ->join('mst_order_status', 'mst_order_status.order_status_id', '=', 'call_chat_request.request_status')
+            ->leftjoin('wallets','wallets.user_id','=','call_chat_request.expert_id')
+            ->select('call_chat_request.form_meta','call_chat_request.request_type as consult_type','users.name','users.id as user_id','call_chat_request.request_session_id as consult_id','call_chat_request.total_duration','call_chat_request.astro_chat_charge','call_chat_request.astro_video_call_charge','call_chat_request.astro_call_chagre','wallets.amount as earn_amount', 'mst_order_status.name as status')
+            ->where('request_session_id',$cousultId)->first();
+            if($result){
+                $result->form_meta=unserialize($result->form_meta);
+                $result->remidies=ChatAndCallController::GetRemedies($cousultId);
+            }
+            return ApiResponse(200,true,'success',$result);
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+        }
+    }
+    public function getNoticeBoard(Request $request){
+        try {
+            $result = NoticeBoard::where('usertype', 'ASTROLOGER')->get()->map(function ($item) {
+                $item->image = asset('public/'.$item->image); // Adding base URL
+                return $item;
+            });
+           
+            
+            return ApiResponse(200,true,'success',$result);
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+
+        }
+
+    }
+    public function getFollower(Request $request){
+       try {
+        $authid = $request->auth_user->id;
+      
+        
+        $totalCount = FollowModel::where("tbl_follow.expert_id", $authid)->count(); // Get total count
+        $data = FollowModel::join("users", "users.id", "=", "tbl_follow.user_id")
+        ->join("users_details", "users.id", "=", "users_details.user_id")
+        ->where("tbl_follow.expert_id", $authid)
+        ->select("tbl_follow.*", "users.name", "users.image", "users_details.about_me_hn", "users_details.about_me_en")
+        ->orderby("tbl_follow.id", "DESC")
+        ->paginate(10);
+    
+    // Modify paginated data correctly
+    $data->getCollection()->transform(function ($item) use ($request) { 
+        $item->image = asset('public/cms-images/user-images/' . $item->image);
+        $item->bio = $item->about_me_en;
+    
+        if ($request->has('lang') && $request->lang == 'hi') { 
+            $item->bio = $item->about_me_hn;
+        }
+    
+        return $item;
+    });
+
+            return ApiResponse(200,true,'Success',['records'=>$data,'total'=>$totalCount]);
+       } catch (\Throwable $th) {
+        return InternalError($th->getMessage());
+
+       }
+    }
+
+    public function getGallery(Request $request){
+        try {
+            $authid = $request->auth_user->id;
+    
+            $data = AstroGallery::where("user_id", $authid)
+                ->orderby("id", "DESC")
+                ->paginate(10)->map(function($item){
+                    $item->full_image_url=asset('public/cms-images/astro-gallery/'.$item->user_id.'/'.$item->image);
+                    return $item;
+                });
+                return ApiResponse(200,true,'Success',$data);
+           } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+    
+           }
+    }
+    public function saveGallery(Request $request)
+{
+    try {
+        $authid = $request->auth_user->id;
+
+        // Validate Image
+        $validator = Validator::make($request->all(), [
+            "image" => "required|mimes:jpg,jpeg,png|max:2048",
+        ]);
+
+        if ($validator->fails()) {
+            return errorResponse($validator->errors());
+        }
+
+        $image = $request->file("image");
+        $originalName = pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME);
+        $fileExt = $image->extension();
+        $imageName = rand() . "_" . Str::slug($originalName) . "." . $fileExt;
+        $imagePath = "cms-images/astro-gallery/{$authid}";
+
+        // Ensure Directory Exists
+        File::ensureDirectoryExists(public_path($imagePath));
+
+        // Move Image
+        $image->move(public_path($imagePath), $imageName);
+
+        // Save Data
+        $data = AstroGallery::create([
+            "user_id" => $authid,
+            "image_path" => "/public/{$imagePath}/",
+            "image" => $imageName,
+        ]);
+
+        return ApiResponse(200, true, "Success", $data);
+    } catch (\Throwable $th) {
+        return InternalError($th->getMessage());
+    }
+}
+public function deleteGallery(Request $request,$gallery_id)
+    {
+       
+        
+        $obj = AstroGallery::where("id", $request->gallery_id)
+            ->first();
+        if ($obj) {
+            $obj->delete();
+            $image_path =
+                public_path("cms-images/astro-gallery/") .
+                "/" .
+                $obj->user_id .
+                "/" .
+                $obj->image;
+            if (File::exists($image_path)) {
+                File::delete($image_path);
+            }
+            $success = [];
+            return ApiResponse(200, true, "Success", $obj);
+        } else {
+        return InternalError($th->getMessage());
+
+        }
+    }
+
+
+    public function getWalletReport(Request $request)
+    {
+       try {
+        $authid = $request->auth_user->id;
+        $type=$request->type;
+
+
+        $userDetails = UsersDetail::select('balance_amount')->where("user_id", $authid)->first();
+        if($userDetails){
+            $totalAmountPaid = WalletsModel::select(
+                DB::raw("SUM(amount) as totalAmount")
+            )
+                ->where("transaction_type", "=", "debits")
+                ->where("product_type", "=", "payout")
+                ->where("user_id", $authid)
+                ->when($type, function ($query, $type) {
+                    $query->where('product_type', $type);
+    
+                })
+                ->first();
+
+            $currentWeekRevenue = WalletsModel::select(DB::raw("SUM(amount) as totalAmount"))->where(function ($query) {
+                    $query->where("transaction_type", "=", "credits")->orWhere("transaction_type", "=", "credit");
+                })->whereBetween("created_at", [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek(),
+                ])->where("user_id", $authid)
+                ->when($type, function ($query, $type) {
+                    $query->where('product_type', $type);
+    
+                })
+                ->first();
+
+            $lastWeekRevenue = WalletsModel::select(DB::raw("SUM(amount) as totalAmount"))->where(function ($query) {
+                $query->where("transaction_type", "=", "credits")->orWhere("transaction_type", "=", "credit");
+            })->whereBetween("created_at", [
+                Carbon::now()->subWeek()->startOfWeek(),
+                Carbon::now()->subWeek()
+                    ->endOfWeek(),
+            ])->where("user_id", $authid)
+            ->when($type, function ($query, $type) {
+                $query->where('product_type', $type);
+
+            })
+            ->first();
+
+            $totalEarning = WalletsModel::select(
+                DB::raw("SUM(amount) as totalAmount")
+            )->where(function ($query) {
+                    $query->where("transaction_type", "=", "credits")->orWhere("transaction_type", "=", "credit");
+            })->where("user_id", $authid)
+            
+            ->when($type, function ($query, $type) {
+                $query->where('product_type', $type);
+
+            })
+            ->first();
+
+            $tdsDeposited = WalletsModel::select(
+                DB::raw("SUM(amount) as totalAmount")
+            )->where("transaction_type", "=", "debits")->where("product_type", "=", "tds")->where("user_id", $authid)->first();
+
+            $tdsPercentage = 10;
+            $pendingTds = ($userDetails->balance_amount * $tdsPercentage) / 100;
+            $walletbalance = $userDetails->balance_amount - $pendingTds;  
+
+     
+            $result["walletbalnce"] = number_format($walletbalance, 2);
+            $result["pendingTds"] = number_format($pendingTds, 2);
+            $result["tdsPercentage"] = number_format($tdsPercentage, 1);
+            $result["totalAmountPaid"] = number_format(
+                $totalAmountPaid->totalAmount,
+                2
+            );
+            $result["currentWeekRevenue"] = number_format(
+                $currentWeekRevenue->totalAmount,
+                2
+            );
+            $result["lastWeekRevenue"] = number_format(
+                $lastWeekRevenue->totalAmount,
+                2
+            );
+            $result["totalEarning"] = number_format(
+                $totalEarning->totalAmount,
+                2
+            );
+            $result["tdsDeposited"] = number_format(
+                $tdsDeposited->totalAmount,
+                2
+            );
+
+         
+   
+           
+                
+            return ApiResponse(200,true,'success',$result);
+        }
+        return SimpleResponse(404,false,'Failed to fetch data');
+
+      
+
+   
+       } catch (\Throwable $th) {
+        return InternalError($th->getMessage());
+
+       }
+    }
+    public function getWalletHistory(Request $request)
+    {
+       try {
+        $authid = $request->auth_user->id;
+        $type=$request->type;
+        $from_date=$request->from_date;
+        $to_date=$request->to_date;
+        $search="";
+        if(!empty($request->search)){
+            $search = $request->search; 
+        }
+        $userDetails = UsersDetail::select('balance_amount')->where("user_id", $authid)->first();
+        if($userDetails){
+            $sort=!empty($request->sort) ? $request->sort : 'DESC';
+
+            $key =  !empty($request->sort) ? 'amount' : 'created_at';
+
+            $result= WalletsModel::select(
+                "id",
+                "user_id",
+                "transaction_id",
+                "transaction_type",
+                "amount",
+                "product_type",
+                "transaction_by",
+                "remarks",
+                "balance_amount",
+                "payment_id",
+                "parent_id",
+                "wallets_meta",
+                "astro_pay_status",
+                "created_at",
+				"updated_at"
+            )
+            ->when($search, function($query) use ($search) {
+                // Basic search implementation if you don't want to create a scope
+                return $query->where('transaction_id', 'like', "%{$search}%");
+            })
+                ->where("user_id", $authid)
+                ->when($type, function ($query, $type) {
+                    $query->where('product_type', $type);
+    
+                })
+                ->when($from_date && $to_date, function ($query) use ($from_date, $to_date) {
+                    $query->whereBetween('created_at', [$from_date, $to_date]);
+                })
+                
+                ->groupBy("transaction_id" )
+                
+                ->orderby($key, $sort)
+               
+                ->paginate(10);
+                
+            return ApiResponse(200,true,'success',$result);
+        }
+        return SimpleResponse(404,false,'Failed to fetch data');
+
+      
+
+   
+       } catch (\Throwable $th) {
+        return InternalError($th->getMessage());
+
+       }
+    }
+    public function acceptSession(Request $request,$sessiondid){
+        try {
+         $call_details = CallChatRequest::where('request_session_id', $sessiondid)->where('request_status',1)->first();
+         $updateExpertStatus = UsersDetail::where('user_id', @$call_details->expert_id)->first();
+         if(!$call_details || !$updateExpertStatus){
+             return SimpleResponse(401,false,"Unauthorized access");
+         }
+         $currentTime = date('Y-m-d H:i:s', time());
+         $call_details->request_status=2; /// start
+         $call_details->astro_start_time = $currentTime;
+         $updateExpertStatus->availability = 2; // set expert bust
+         $updateExpertStatus->save();
+         $call_details->save();
+         $checkUser=User::select('users.user_type','users_details.balance_amount','users.id','users.image')->join('users_details', 'users_details.user_id', '=', 'users.id')->where('users.id',$call_details->user_id)->first();
+         $user_image=!empty(!$checkUser->image) ? asset('cms-images/user-images/'.$checkUser->image): "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
+
+
+         FireBaseActionController::AstrologerConsultUpdate($call_details->expert_id,$call_details->user_id,$call_details->user_name,$user_image,$checkUser->balance_amount,$call_details->request_type,$sessiondid,'active',$currentTime);
+         $call_details->form_meta=unserialize($call_details->form_meta);
+         $call_details->max_end_time=getmaxExpectedTime($sessiondid);
+         $userdata= User::where('id',$call_details->user_id)->select('image')->first();
+         $call_details->image= asset('public/cms-images/user-images') . '/' . $userdata->image;
+         return ApiResponse(200,true,'Session Accept',$call_details);
+ 
+        } catch (\Throwable $th) {
+           return InternalError($th->getMessage());
+ 
+        }
+     }
+     public function conferencing(Request $request)
+{
+    try {
+        $validator = Validator::make($request->all(), [
+          
+            'room_id'     => 'required',
+            'is_available' => 'required|integer|in:0,1'
+        ]);
+        if ($validator->fails()) {
+            return errorResponse($validator->errors());
+        }
+        $authid = $request->auth_user->id;
+        $records = AstroConferencing::updateOrCreate(
+            ['astro_id' => $authid], 
+            [
+                'roomid'     => $request->room_id,
+                'is_available' => $request->is_available
+            ]
+        );
+        return ApiResponse(200,true,'success',$records);
+
+
+    } catch (\Throwable $th) {
+        return InternalError($th->getMessage());
+
+    }
+}
+public function JoinWaitlist(Request $request){
+    $validator = Validator::make($request->all(), [
+        'session_id' => 'required',
+    ]); 
+    if ($validator->fails()) {
+        return errorResponse($validator->errors());
+    }
+    $authid = $request->auth_user->id;
+   $checkbusysession = CallChatRequest::where('expert_id', $authid)
+    ->where('request_status', 2)
+    ->exists();
+    if($checkbusysession){
+        return ApiResponse(403,false,'Astrologer is already busy');               
+
+    }
+    $checksession = CallChatRequest::where('request_session_id', $request->session_id)
+    ->where('request_status',20)
+    ->first();
+    if($checksession){
+        $checkUser=User::select('users.user_type','users_details.balance_amount','users.id','users.image')->join('users_details', 'users_details.user_id', '=', 'users.id')->where('users.id',$checksession->user_id)->first();
+       $user_image = !empty($checkUser->image) 
+    ? asset("public/cms-images/user-images/" . $checkUser->image) 
+    : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
+
+        FireBaseActionController::AstrologerConsultUpdate($checksession->expert_id,$checksession->user_id,$checksession->user_name,$user_image,$checkUser->balance_amount,$checksession->request_type,$checksession->request_session_id,'join_waitlist_initiate','');
+		
+		  $checksession->form_meta=unserialize($checksession->form_meta);
+        $checksession->max_end_time=getmaxExpectedTime($request->session_id);
+		$checksession->image=$user_image;
+
+        return ApiResponse(200,true,'Success',$checksession);               
+    }
+    return ApiResponse(404,false,'Not found');               
+}
+	 public function getMyTotalServiceDuration(Request $request){
+      try {
+        $authid = $request->auth_user->id;
+        $calling = WalletsModel::
+			join('call_chat_request', 'call_chat_request.request_session_id', '=', 'wallets.transaction_id')
+		 ->select(
+            DB::raw("SUM(amount) as totalAmount")
+				,
+			DB::raw("SUM(total_duration) as total_duration")
+        )->where(function ($query) {
+                $query->where("transaction_type", "=", "credits")->orWhere("wallets.transaction_type", "=", "credit");
+        })->where("wallets.user_id", $authid)
+       ->where('wallets.product_type', 'calling')
+        ->first();
+		 
+		 
+		 
+		 $chat = WalletsModel::
+			join('call_chat_request', 'call_chat_request.request_session_id', '=', 'wallets.transaction_id')
+		 ->select(
+            DB::raw("SUM(amount) as totalAmount")
+				,
+			DB::raw("SUM(total_duration) as total_duration")
+        )->where(function ($query) {
+                $query->where("transaction_type", "=", "credits")->orWhere("wallets.transaction_type", "=", "credit");
+        })->where("wallets.user_id", $authid)
+       ->where('wallets.product_type', 'chat')
+        ->first();
+		 
+		 
+		 
+		 
+		  $video = WalletsModel::
+			join('call_chat_request', 'call_chat_request.request_session_id', '=', 'wallets.transaction_id')
+		 ->select(
+            DB::raw("SUM(amount) as totalAmount")
+				,
+			DB::raw("SUM(total_duration) as total_duration")
+        )->where(function ($query) {
+                $query->where("transaction_type", "=", "credits")->orWhere("wallets.transaction_type", "=", "credit");
+        })->where("wallets.user_id", $authid)
+       ->where('wallets.product_type', 'video')
+        ->first();
+		 
+		 
+		 $data=[
+		 'chat'=>$chat,
+		'calling'=>$calling,
+			 'video'=>$video
+		];
+        return ApiResponse(200,true,'success',$data);
+        return $data;
+      } catch (\Throwable $th) {
+       return InternalError($th->getMessage());
+      }
+    }
+
+
+
+    public function AppVersion () {    
+        $response = AppVersion::where('type', 'user')->get();
+    
+        return ApiResponse(200,true,"success",$response);
+    }
+
+}

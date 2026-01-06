@@ -1,0 +1,86 @@
+<?php
+
+use App\Http\Controllers\FAQController;
+use App\Http\Controllers\Astrologer\AstrologerController;
+use App\Http\Controllers\Astrologer\ChatAndCallController;
+use App\Http\Controllers\User\AstroReviewController;
+use App\Http\Controllers\User\GiftController;
+use App\Http\Controllers\User\HomePageController;
+use App\Http\Controllers\User\RechargePackageController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\User\UserController;
+// 'middleware' => 'api.auth'
+Route::group(['prefix' => 'astrologer'], function () {
+
+
+    
+    Route::post('login', [AstrologerController::class, 'login']);
+    Route::post('resend-otp', [AstrologerController::class, 'resendOTP']);
+    Route::post('verify-otp', [AstrologerController::class, 'OtpVerify']);    
+  
+
+    Route::get('app-version', [UserController::class, 'AppVersion2']);
+
+    Route::group(['middleware' => 'api.auth','prefix' => 'profile'],function () {
+        Route::post('logout', [AstrologerController::class, 'logout'])->middleware('api.auth');
+        Route::post('update-profile-image', [AstrologerController::class, 'updateProfileImage']);
+        Route::post('update-profile', [AstrologerController::class, 'UpdateProfile']);
+        // add new route 
+       
+        Route::get('astro-price-range', [AstrologerController::class, 'getMinPriceRange']);
+        // end
+        Route::post('update-price', [AstrologerController::class, 'UpdatePrice']);
+        Route::post('online-update', [AstrologerController::class, 'OnlineUpdate']);
+        Route::post('promotional-status-update', [AstrologerController::class, 'managePromotionalOfferStatus']);
+        Route::post('update-service-status', [AstrologerController::class, 'updateServiceStatus']);
+        Route::get('/{id}', [UserController::class, 'getProfile']);
+        Route::post('update-charges', [UserController::class, 'refreshToken']);
+        Route::post('delete', [UserController::class, 'deleteAccount']);
+
+    });
+   
+    Route::group(['prefix' => 'remedis'], function () {
+        Route::post('/{consultid}', [ChatAndCallController::class, 'SendRemedis']);
+		    Route::post('/update/{consultid}', [ChatAndCallController::class, 'UpdateRemedies']);
+
+    });
+    Route::group(['middleware' => 'api.auth','prefix' => 'chat'],function () {
+        Route::get('get-list', [AstrologerController::class, 'getConsultHistory']);
+        Route::get('get-message/{cousultId}', [AstrologerController::class, 'ChatHistory']);
+        Route::get('get-data/{cousultId}', [AstrologerController::class, 'getChatData']);
+
+
+    });
+    Route::group(['middleware' => 'api.auth','prefix' => 'call'],function () {
+        Route::get('get-data/{cousultId}', [AstrologerController::class, 'getChatData']);
+        Route::get('get-history', [AstrologerController::class, 'getConsultHistory']);
+       
+
+
+    });
+	   
+    Route::group(['middleware' => 'api.auth'],function () {
+		 Route::get('session/get-waitlist', [AstrologerController::class, 'getCallWaitList']);
+		  Route::post('save-device-token', [UserController::class, 'SaveDeviceToken']);
+        Route::get('get-notice-board', [AstrologerController::class, 'getNoticeBoard']);
+        Route::get('get-follower', [AstrologerController::class, 'getFollower']);
+        Route::get('my-gallery', [AstrologerController::class, 'getGallery']);
+        Route::get('my-wallet', [AstrologerController::class, 'getWalletReport']);
+        Route::get('my-wallet-history', [AstrologerController::class, 'getWalletHistory']);
+
+        Route::post('save-gallery', [AstrologerController::class, 'saveGallery']);
+        // Route::delete('delete-gallery/{gallery_id}', [AstrologerController::class, 'deleteGallery']);
+		Route::post('delete-gallery', [AstrologerController::class, 'deleteGallery']);
+        Route::post('review/reply', [AstrologerController::class, 'replyToReview']);
+        Route::post('user/review', [AstrologerController::class, 'getRatingAndReview']);
+
+    });
+
+    Route::get('accept-session/{cousultId}', [AstrologerController::class, 'acceptSession']);
+
+    Route::post('conferencing', [AstrologerController::class, 'conferencing'])->middleware('api.auth');
+  Route::post('join-waitlist', [AstrologerController::class, 'JoinWaitlist'])->middleware('api.auth');
+	
+	  Route::get('get-total-service-details', [AstrologerController::class, 'getMyTotalServiceDuration'])->middleware('api.auth');
+});
+

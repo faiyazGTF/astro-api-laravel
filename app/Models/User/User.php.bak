@@ -1,0 +1,839 @@
+<?php
+
+namespace App\Models\User;
+use App\Http\Controllers\FireBaseActionController;
+use App\Models\Commons\Cities;
+use App\Models\Commons\Countries;
+use App\Models\Commons\State;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Validator;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User\UsersDetail;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Tymon\JWTAuth\Contracts\JWTSubject;
+use Str;
+use Tymon\JWTAuth\Facades\JWTAuth;
+
+class User extends Authenticatable implements JWTSubject
+{
+    use HasApiTokens;
+    use HasFactory;
+    use Notifiable;
+    public static $lang='en';
+
+    protected $appends = ['full_image_url']; // Append to API responses
+    public function getFullImageUrlAttribute()
+    {
+        if (!$this->image) {
+            return null; // Return null if no image is available
+        }
+
+        return asset($this->image_path.$this->image); // Append the base URL
+    }
+
+
+    public function getJWTIdentifier()
+    {
+        return $this->getKey(); // Usually the primary key of the user
+    }
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'tbl_follow', 'expert_id');
+    }
+
+    public function isFollowing($user_id)
+    {
+        return $this->following()->where('user_id', $user_id)->exists();
+    }
+
+    public function Gallery()
+    {
+        return $this->hasMany(AstroGallery::class, 'user_id');
+    }
+
+    public function ReviewBy()
+    {
+        return $this->hasMany(ReviewsModel::class, 'to_experts')->with('User');
+    }
+    
+
+
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+    public function userDetail()
+    {
+        return $this->hasOne(UsersDetail::class, 'user_id')->select('profile_name_hn',
+        'about_me_en',
+        'about_me_hn',
+        'specialisation',
+        'languages',
+        'experience',
+        'is_login',
+        'availability',
+        'flags',
+        'rating',
+        'slug',
+        'astro_call_charges',
+        'astro_chat_charges',
+        'disc_call_charge',
+        'disc_chat_charge',
+        'astro_video_charges',
+        'disc_video_charge',
+        'image_path',
+        'profile_image',
+        'is_promotional_accept',
+        'label',
+        
+        'city','country','state','user_id');
+    }
+
+
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'mobile',
+        'email_verified_at',
+        'email_verification_token',
+        'image',
+        'user_type',
+        'status',
+        'tokens'
+    ];
+
+   
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    public static function CreateGuestUser($countycode,$mobile,$otp,$user_type,$status=0){
+       try {
+        $userObjects= new User(); 
+        $userObjects->name         = 'Guest User';
+        $userObjects->email        = 'new_' . time() . '@xyz.in';
+        $userObjects->password     = Hash::make('987654321');
+        $userObjects->country_code = $countycode;
+        $userObjects->mobile       = $mobile;
+        $userObjects->otp          = $otp;
+        $userObjects->user_type    = $user_type;
+        $userObjects->status       = $status;
+        $userObjects->image        = 'default/default-user-image.png';
+        if($userObjects->save()){
+            $userprofile                = new UsersDetail();
+            $userprofile->user_id       = $userObjects->id;
+            $userprofile->mobile2       = $mobile;
+            $userprofile->profile_name_en       = 'Guest User';
+            $userprofile->profile_image = 'default/astro-expert-banner.jpg';
+            $userprofile->image_path    = '/public/cms-images/user-images/';
+            $userprofile->save();
+            sendOtp($otp,$countycode,$mobile);
+            return true;
+        }
+       } catch (\Throwable $th) {
+            return $th->getMessage();
+       }
+    }
+    public static function  login($request){
+    
+        $validator = Validator::make($request->all(), [
+            'country_code' => 'required',
+            'mobile'       => 'required|numeric',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+
+        $otp=generateOTP();
+			 $checkuser = User::where('mobile', $request->mobile)->first();
+               $mobile=$request->mobile;
+       
+         $countycode= !empty($request->country_code)? $request->country_code : "91";
+        if($checkuser){
+			
+        if($checkuser->id==9){
+            $otp=1234;
+        }
+
+            // if($checkuser->user_type == 'ASTROLOGER'){
+            //     return response()->json([
+            //         'statusCode'=>403,
+            //         'status'=>false,
+            //         'message'=>'Please Login with another Mobile No.',
+            //     ]); 
+            // }
+            $mobilesms= sendOtp($otp,$countycode,$mobile);
+		
+            $checkuser->otp=$otp;
+            $checkuser->save();
+      
+            return ApiResponse(200,true," One time OTP is $otp sent On .$mobile",true);
+
+           
+        }else{
+            $status=$request->user_type=="ASTROLOGER" ? 0 : 1;
+            $result=self::CreateGuestUser($countycode,$mobile,$otp,$request->user_type,$status);
+                if($result==true){
+                    return ApiResponse(200,true," One time is $otp OTP sent On .$mobile");
+                }
+                return InternalError($result);
+        }
+    }
+
+    public static function  astrologin($request){
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+        if ($validator->fails()) {
+           
+            return errorResponse($validator->errors());
+        }
+        $checkuser = User::where('email', $request->email)->where('user_type','ASTROLOGER')->first();
+        
+        if (Auth::attempt(['email' => $request->email, 'password' => $request->password]) && $checkuser) {
+        $token = Auth::guard('api')->login($checkuser);
+   
+
+
+            $user                 = $checkuser;
+            $success['token']     = $token;
+            $success['id']        = $user->id;
+            $success['name']      = $user->name;
+            $success['user_type'] = $user->user_type;
+            $success['is_signup_complete']=$checkuser->is_signup_complete;
+
+            $success['success'] = true;
+            
+        $obj = user::where(['id'=> $user->id])->first();
+        $obj->firebase_tokens = $request->firebasetoken;
+        $obj->save();
+        
+        if($obj->is_deleted == 1){
+            Auth::logout();
+          
+                return ApiResponse(403,true,'Your Account is Deleted. Contact Admin.');
+
+        }else{
+
+         
+            return ApiResponse(200,true,'User login successfully.',$success);
+        }
+
+            
+        } else {
+            return ([
+                "success" => false,
+                "message" => "Invalid email or password",
+                "data" => ["message" => "Unauthorised access","success" => false,]
+                ]);
+            
+            // $this->sendResponse('Unauthorised.', ['data' => 'Unauthorised']);
+        }
+    }
+    public static function  logout($request){
+
+
+
+
+
+             $token = JWTAuth::getToken();
+        
+            $manager = JWTAuth::manager()->setBlacklistEnabled(true);
+            JWTAuth::invalidate($token);
+
+            return response()->json([
+                'statusCode'=>200,
+                'status' => true,
+                'message' => 'Logout Successfully',
+            ]);
+
+    }
+
+    public  static function resendOTP($request){
+        $validator = Validator::make($request->all(), [
+            'country_code' => 'required',
+            'mobile'       => 'required|numeric',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $checkuser = User::where('mobile', $request->mobile)->first();
+        $mobile=$request->mobile;
+        $country_code=$request->country_code;
+        if(!$checkuser){
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'something went wrong',
+            ]);
+        }   
+        $otp =generateOTP();
+        $checkuser->otp=$otp;
+        if($checkuser->save())
+        {
+            sendOtp($otp,$country_code,$mobile);
+
+            return response()->json([
+                'statusCode'=>200,
+                'status'=>true,
+                'message' => ' One time OTP sent On '.$mobile,
+            ]);
+        }
+        return response()->json([
+            'statusCode'=>403,
+            'status'=>false,
+            'message'=>'something went wrong',
+        ]);
+    }   
+    public static function VerifyOtp($request){
+        $validator = Validator::make($request->all(), [
+            'mobile'       => 'required|numeric',
+            'otp'       => 'required|numeric',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $mobile=$request->mobile;
+        $otp=$request->otp;
+        $checkuser = User::where('mobile', $request->mobile)->first();
+        
+        if(!$checkuser){
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'something went wrong',
+            ]);
+        }
+        if($checkuser->otp!=$otp){
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Invalid Otp',
+            ]);
+        }
+       
+        // Auth::login($checkuser);
+        $expiry = Carbon::now('Asia/Kolkata')->addMinutes(config('jwt.ttl')); 
+        $expiryFormatted = $expiry->toDateTimeString();
+        $token = Auth::guard('api')->login($checkuser);
+        if($checktoken=DB::table('oauth_refresh_tokens')->where('id',$checkuser->id)->first()){
+            DB::table('oauth_refresh_tokens')
+        ->where('id', $checkuser->id)
+            ->update([
+                'access_token_id' => $token,
+                'revoked' => $checktoken->revoked + 1,
+                'expires_at' => $expiryFormatted,
+            ]);
+
+
+        }else{
+            DB::table('oauth_refresh_tokens')->insert([
+                'id' => $checkuser->id,
+                'access_token_id' => $token,
+                'revoked'=>1,
+                'expires_at' => $expiryFormatted,
+            ]);
+        }  
+     
+    
+
+
+
+        $success['token']     = [
+            'AutorizationType'=>'Bearer',
+            'token'=>$token,
+            'expires_at'=>$expiry
+        ];
+        $success['id']        = $checkuser->id;
+        $success['name']      = $checkuser->name;
+        $success['user_type'] = $checkuser->user_type;
+		$success['is_signup_complete'] = $checkuser->is_signup_complete;
+        return response()->json([
+            'statusCode'=>200,
+            'status'=>true,
+            'message'=>'success',
+            'data'=>$success
+        ]);    
+
+
+    }
+    public static function getProfile($request,$userid){
+        $userdata= User::leftjoin('users_details', 'user_id', '=', 'users.id')
+        ->leftjoin('mst_countries', 'mst_countries.id', '=', 'users_details.country')
+        ->leftjoin('mst_states', 'mst_states.id', '=', 'users_details.state')
+        ->leftjoin('mst_cities', 'mst_cities.id', '=', 'users_details.city')
+        ->leftjoin('mst_languages', 'mst_languages.id', '=', 'users_details.languages')
+        ->select('users.id', 'users.name', 'users.mobile', 'users.email', 'users.user_type', 'users.created_at', 'users.image', 'users_details.*', 'mst_countries.country_name', 'mst_states.state_name', 'mst_cities.city_name')
+        ->where('users.id', $userid)->first();
+        if($userdata){ 
+           
+           
+           
+            if(!empty($request->lang) && $request->lang=='hi' && !empty($userdata->profile_name_hn)){
+                $userdata->name=$userdata->profile_name_hn;
+            }   
+
+
+            return response()->json([
+                'statusCode'=>200,
+                'status'=>true,
+                'message'=>'success',
+                'data'=>$userdata
+            ]);
+        }
+        return response()->json([
+            'statusCode'=>404,
+            'status'=>false,
+            'message'=>'Not found',
+        ]);
+    }
+
+  
+    public static function refreshToken()
+    {
+        return response()->json([
+            'statusCode'=>200,
+            'status' => true,
+            'message' => 'success',
+            'authorisation' => [
+                'token' => Auth::guard('api')->refresh(),
+                'type' => 'bearer',
+            ]
+        ]);
+    }
+    public static function updateProfileImage($request){
+        $authid = $request->auth_user->id;
+        $validator = Validator::make($request->all(), [
+            'profile_image' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120' // aprox. 5 MB file.
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $checkuser = User::where('id', $authid)->first();
+        $imageName = $checkuser->id . '-' . Str::slug($checkuser->name) . '.' . $request->profile_image->extension();
+        $checkuser->image = $imageName;
+
+
+      
+        $request->profile_image->move(public_path('cms-images/user-images'), $imageName);
+        if ($checkuser->save()) {
+            $imagepath = asset('public/cms-images/user-images') . '/' . $imageName;
+            return response()->json([
+                'statusCode'=>200,
+                'status'=>true,
+                'message'=>'Profile Image Updated successfully',
+                'data'=>$imagepath
+            ]); 
+        } 
+        return response()->json([
+            'statusCode'=>403,
+            'status'=>false,
+            'message'=>'something went wrong',
+        ]);
+    }
+     public static function UpdateProfile($request){
+        try {
+            
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:255',
+            'country'   => 'required|string',
+         
+            'state'     => 'required|string',
+            'city'      => 'required|string',
+            'birth_place'   => 'required|string',
+            'lat'   => 'required',
+            'long'   => 'required',
+           
+            'birth_time' => 'required|date_format:H:i',
+            'dob' => 'required|date|date_format:Y-m-d',
+            'gender'   => 'required',
+            
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $country = Countries::firstOrCreate(
+            ['country_name' => $request->country], // Check if the country_name exists
+            [
+                'sortname' => 0,
+                'phonecode' => 0,
+                'active_status' => 0,
+                'cont_digits' => 0
+            ],
+        );     
+        $authid = $request->auth_user->id;
+        $request->dob=$request->dob.' '.$request->birth_time;
+
+        $country = @$country->id;
+        $ct = $request->city;
+        $st = $request->state;
+
+        $state = State::firstOrCreate(
+            ['state_name' => $st], // Check if the country_name exists
+            [
+                'country_id' => $country,
+                'state_name' => $request->state,
+            ],
+        ); 
+
+        $city = Cities::firstOrCreate(
+            ['city_name' => $ct], // Check if the country_name exists
+            [
+                'city_name' => $ct,
+                'state_id' => $state->id,
+            ],
+        );    
+       
+
+     
+    
+        // create statte 
+        
+        // end create state 
+        $city = $city->id;
+       
+        $sity = $state->id;
+        $checkuser = User::where('id', $authid)->first();
+        if(!$checkuser){
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'something went wrong',
+            ]);
+        }
+			if(!empty($request->email)){
+			
+        $checkdublicateemail=User::where('id','<>' ,$authid)->where('email',$request->email)->first();
+        if($checkdublicateemail){
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>$request->email. 'Email already exists',
+            ]); 
+        }
+				}
+        $userschame=User::find($authid);
+        $userschame->email=$checkuser->email;
+        $detailsObj = UsersDetail::where('user_id', $authid)->first();
+        $checkuser->name = $request->full_name ? $request->full_name : $checkuser->name;
+        $checkuser->is_signup_complete =1;
+			
+        // $checkuser->email = $request->email ? $request->email : $checkuser->email;
+        $address_details=[];
+        if(!empty($detailsObj->address_details)){
+            $address_details=json_decode($detailsObj->address_details,true);
+        }
+        $address_details['lat']=$request->lat;
+        $address_details['lng']=$request->long;
+        $address_details['time_of_birth']=$request->birth_time;
+        $detailsObj->country = $country;
+        $detailsObj->city = $city;
+        $detailsObj->profile_name_en =$request->full_name;
+        $detailsObj->profile_name_hn =$request->full_name;
+
+
+        
+        $checkuser->email = $request->email;
+			if(!empty($request->address)){
+				  $detailsObj->address = $request->address;
+			}
+      
+
+        $detailsObj->state = $sity;
+        $detailsObj->address_details = json_encode($address_details);
+        $detailsObj->zip_code = !$request->zip_code ? $request->zip_code : "";
+        $detailsObj->birth_place = $request->birth_place;
+        $detailsObj->gender = $request->gender;
+        $detailsObj->dob = $request->dob;
+			
+			if(!empty($request->marital_status)){
+				  $detailsObj->marital_status = $request->marital_status;
+			}
+      
+			
+			
+        $detailsObj->is_updated = 1;
+        if ($checkuser->save() && $detailsObj->save()) {
+            return response()->json([
+                'statusCode'=>200,
+                'status'=>true,
+                'message'=>'success',
+                'data'=>$detailsObj
+            ]); 
+        }
+        return response()->json([
+            'statusCode'=>403,
+            'status'=>false,
+            'message'=>'failed',
+        ]); 
+
+    
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+        }
+    }
+    // pending 
+    public static function UpdateAstroProfile($request){
+        $validator = Validator::make($request->all(), [
+          
+            'full_name' => 'required|string|max:255',
+            'dob' => 'required|date',
+            'language' => 'required|array|min:1', // Ensure it's an array and not empty
+            'wellness_experiece'   => 'required',
+            'about_astro'   => 'required',
+            'experience'=>'required'
+
+        ]);
+        if ($validator->fails()) {
+            return errorResponse($validator->errors());
+        }
+        $authid=$request->auth_user->id;
+  
+        $checkuser = User::where('id', $authid)->first();
+        if(!$checkuser){
+            return SimpleResponse(403,false,"Unauthorized access");
+         
+        }
+       
+        $detailsObj = UsersDetail::where('user_id', $authid)->first();
+        $checkuser->name = $request->full_name ? $request->full_name : $checkuser->name;
+        $detailsObj->profile_name_en = $request->full_name ? $request->full_name : $checkuser->name;
+        $detailsObj->about_me_en = $request->about_astro;
+
+        if($request->lang=='hi'){
+            $detailsObj->profile_name_hn = $request->full_name ? $request->full_name : $checkuser->name;
+            $detailsObj->about_me_hn = $request->about_astro;
+        }
+        // $detailsObj->birth_place = $request->birth_place;
+        $detailsObj->languages = implode(',',$request->language);
+        $detailsObj->wellness_experiece=$request->wellness_experiece;
+        $detailsObj->dob = $request->dob;
+        $detailsObj->is_updated = 1;
+        $detailsObj->experience = $request->experience;
+        if ($checkuser->save() && $detailsObj->save()) {
+           return SimpleResponse(200,true,'Profile Updated Successfully');
+        }
+        return SimpleResponse(403,false,'Failed to update Profile');
+    }
+
+    public static function FollowAstrologer($request){
+
+
+        $validator = Validator::make($request->all(), [
+            'expert_id' => 'required|exists:users,id',
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+      
+        if ($validator->fails()) {
+            return response()->json([
+                'statusCode'=>403,
+                'status'=>false,
+                'message'=>'Please Fill Mandatory fields',
+                'errors'=>$validator->errors()
+            ]);
+        }
+        $checkalready = FollowModel::where('expert_id', $request->expert_id)
+        ->where('user_id', $request->user_id)->first();
+
+        if (!$checkalready) {
+            $obj = new FollowModel();
+            $obj->expert_id = $request->expert_id;
+            $obj->user_id = $request->user_id;
+            $obj->save();
+				
+			$getdata=User::find($request->user_id);
+			 $getuserdata=getFcmToken($request->expert_id);
+            if($getuserdata){
+				$image="";
+					if($getdata->full_image_url){
+						$image=$getdata->full_image_url;
+					}
+                FireBaseActionController::PushNOtification($getuserdata,'New Follower',''.$getdata->name.' start following you');
+
+            }
+			
+        } else {
+            FollowModel::where('expert_id', $request->expert_id)
+                ->where('user_id', $request->user_id)
+                ->delete();
+          
+        }
+        $result=FollowModel::where('expert_id', $request->expert_id)
+        ->where('user_id', $request->user_id)
+        ->exists();
+
+        return response()->json([
+            'statusCode'=>200,
+            'status'=>true,
+            'message'=>'success',
+            'data'=>$result
+        ]); 
+
+        
+
+
+    }
+
+
+    public static  function MyFollowing($request,$user_Id){
+       
+        $perPage = $request->input('per_page', 10);
+        $astro = FollowModel::select([
+            'users.id AS user_id',
+            'users.name',
+            'users.mobile',
+            'users.image',
+            'users.user_type',
+            'users.astroera_account',
+            'users_details.profile_name_en',
+            'users_details.profile_name_hn',
+            'users_details.specialisation',
+            'users_details.languages',
+            'users_details.experience',
+            'users_details.is_login',
+            'users_details.availability',
+            'users_details.flags',
+            'users_details.rating',
+            'users_details.slug',
+            'users_details.state',
+            'users_details.country',
+            'users_details.astro_call_charges',
+            'users_details.astro_chat_charges',
+            'users_details.disc_call_charge',
+            'users_details.disc_chat_charge',
+            'users_details.image_path',
+            'users_details.profile_image',
+            'users_details.is_promotional_accept',
+            'users_details.label',
+            'users_details.astro_video_charges',
+
+            'users_details.video_commission',
+            'users_details.disc_video_charge'
+           
+        ])->
+        join('users','users.id', 'tbl_follow.expert_id')
+        ->join('users_details', 'users_details.user_id', '=', 'users.id')
+        ->where('tbl_follow.user_id',$user_Id)
+        
+        ->get();
+
+
+        $experts = array();
+
+        foreach ($astro as $astr) {
+
+            $details['user_id'] = $astr->user_id;
+            $details['name'] = $astr->name;
+            $details['mobile'] = $astr->mobile;
+            $details['image'] = asset($astr->image_path.$astr->image);
+
+            $details['user_type'] = $astr->user_type;
+            $details['profile_name_en'] = $astr->profile_name_en;
+            $details['profile_name_hn'] = $astr->profile_name_hn;
+            $details['specialisation'] = explodespecialization($astr->specialisation);
+            $details['languages'] = explodesLanguage($astr->languages);
+            $details['experience'] = $astr->experience;
+            $details['is_login'] = $astr->is_login;
+            $details['availability'] = $astr->availability;
+            $details['flags'] = $astr->flags;
+            $details['rating'] = $astr->rating;
+            $details['slug'] = $astr->slug;
+            $details['state'] = $astr->state;
+            $details['country'] = $astr->country;
+            $details['astro_call_charges'] = $astr->astro_call_charges;
+            $details['astro_chat_charges'] = $astr->astro_chat_charges;
+            $details['disc_call_charge'] = $astr->disc_call_charge;
+            $details['disc_chat_charge'] = $astr->disc_chat_charge;
+            $details['astro_video_charges'] = $astr->astro_video_charges;
+            $details['video_commission'] = $astr->video_commission;
+            $details['disc_video_charge'] = $astr->disc_video_charge;
+
+ 
+            $details['is_promotional_accept'] = $astr->is_promotional_accept;
+            $details['label'] = getLabelName($astr->label);
+            $details['skills'] = $astr->skills;
+            $experts[] = $details;
+        }
+
+
+            return $experts;
+
+
+    }
+    public static function  DeleteAccount($request){
+
+        $authid = $request->auth_user->id;
+
+        $user_data = User::where('id', $authid)->first();
+        if ($user_data) {
+            $user_data->status=0;
+            $user_data->is_deleted=1;
+            if ($user_data->user_type == 'USER') {
+                DB::select("UPDATE `users_details` SET `balance_amount` = '0' WHERE user_id = $authid");
+                DB::select("UPDATE `call_chat_request` SET `delete_account` = '1' WHERE user_id = $authid");
+                DB::select("UPDATE `checkouts` SET `delete_account` = '1' WHERE user_id = $authid");
+    
+            }
+      
+            return ApiResponse(200,true,'Your account has been deleted successfully',$user_data);
+
+           
+        }
+
+
+        return response()->json([
+            'statusCode'=>403,
+            'status'=>false,
+            'message'=>'failded to  Deleted Account',
+        ]);
+
+        
+       
+        
+    }
+
+}
