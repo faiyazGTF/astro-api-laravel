@@ -21,3 +21,4 @@ gitaccessapi.pub
 
 /public/token_builder.json
 /public/firebasenotification.json
+/socket-server 

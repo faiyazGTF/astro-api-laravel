@@ -32,9 +32,9 @@ class ChatAndCallController extends Controller
         $expertdata = User::select('users_details.flags', 'users_details.astro_video_charges', 'users_details.video_commission', 'users_details.disc_video_charge', 'users_details.call_commission', 'users.image', 'users_details.chat_commission', 'users_details.disc_call_charge', 'users_details.astro_call_charges', 'users_details.is_promotional_accept', 'users_details.astro_chat_charges', 'users_details.disc_chat_charge', 'users_details.availability', 'users.id', 'users.name')->join('users_details', 'users_details.user_id', '=', 'users.id')->where('users.id', $astroid)->first();
 
         if ($expertdata) {
-            
 
-           $expertdata->image= image_url($expertdata->image,'/public/cms-images/user-images/');
+
+            $expertdata->image = image_url($expertdata->image, '/public/cms-images/user-images/');
             return $expertdata;
         }
         return false;
@@ -492,10 +492,10 @@ class ChatAndCallController extends Controller
             return errorResponse($validator->errors());
         }
         try {
-          
+
             $request_chatid = $request->chat_id;
             $checkrecord = CallChatRequest::where('request_session_id', $request->chat_id)->first();
-            
+
             if (!$checkrecord) {
                 return SimpleResponse(403, false, 'Invalid Chat id or Unauthprized User id');
             } elseif ($checkrecord->request_status == 7 || $checkrecord->request_status == 8 || $checkrecord->request_status == 5) {
@@ -506,7 +506,7 @@ class ChatAndCallController extends Controller
             $session_id = $request->chat_id;
             $expert_id = $checkrecord->expert_id;
             $currentstatus = $checkrecord->request_status;
-         
+
             if ($checkrecord->request_status != 20) {
 
 
@@ -536,14 +536,14 @@ class ChatAndCallController extends Controller
                     $totDuration = 180;
                 }
 
-        
+
                 if ($checkrecord->total_duration == 0) {
                     $time1 = strtotime($checkrecord->astro_start_time);
                     $time2 = time();
                     $diff = $time2 - $time1 - 5;
 
                     $checkrecord->total_duration = $totDuration;
-                  
+
                     if ($checkrecord->request_status == 2) {
                         if ($callRequestType == 'Video' || $callRequestType == 'video') {
                             $this->userWalletDebitForCalling($checkrecord->user_id, $totDuration, $checkrecord->astro_video_call_charge, $session_id, $expert_id, $callRequestType, $checkrecord->is_promotional, $checkrecord->request_status);
@@ -555,7 +555,7 @@ class ChatAndCallController extends Controller
                     }
                 }
             }
-           
+
 
             if (in_array($checkrecord->request_status, [1, 2, 20])) {
                 if ($checkrecord->request_status == 1 || $checkrecord->request_status == 20) {
@@ -576,11 +576,11 @@ class ChatAndCallController extends Controller
                 'end_by' => $usersend,
             ];
             $astrodata = UsersDetail::where('user_id', $expert_id)->first();
-      
-         
+
+
             if ($currentstatus != 20) {
-               $resultfirebase= FireBaseActionController::AstrologerConsultUpdateNew($checkrecord->expert_id, $checkrecord->user_id, $checkrecord->user_name, '', 0, $callRequestType, $session_id, $newarray);
-             
+                $resultfirebase = FireBaseActionController::AstrologerConsultUpdateNew($checkrecord->expert_id, $checkrecord->user_id, $checkrecord->user_name, '', 0, $callRequestType, $session_id, $newarray);
+
                 // UsersDetail::where('user_id', $expert_id)->update(['availability' => 1]);
                 $astrodata->availability = 1;
                 $astrodata->save();
@@ -601,7 +601,7 @@ class ChatAndCallController extends Controller
                     $notificationarray = [
                         'title'     => 'New Message from ' . $getuser->name,
                         'message'   => 'User cancelled your request chat',
-                        'image'     =>image_url($getuser->image,'/public/cms-images/user-images/'),
+                        'image'     => image_url($getuser->image, '/public/cms-images/user-images/'),
                         'type'      => 'chat',
                         'senderid'  => $getuser->id
                     ];
@@ -617,7 +617,7 @@ class ChatAndCallController extends Controller
                     $notificationarray = [
                         'title' => 'New Message from ' . $getuser->name,
                         'message' => 'Astrologer cancel your request chat',
-                        'image' => image_url($getuser->image,'/public/cms-images/user-images/'),
+                        'image' => image_url($getuser->image, '/public/cms-images/user-images/'),
                         'type' => 'chat',
                         'senderid' => $getuser->id
                     ];
@@ -627,9 +627,9 @@ class ChatAndCallController extends Controller
                     $checkrecord->request_status_log = 'Cancelled by Astrologer';
                 }
             }
-           
 
-          $resultresponse=  $checkrecord->save();
+
+            $resultresponse =  $checkrecord->save();
 
             // End Socket Timer
             try {
@@ -744,14 +744,14 @@ class ChatAndCallController extends Controller
                     'request_expired' => date("Y-m-d H:i:s", strtotime("+1 day", time())),
                     'request_status' => $request_status,
                     'user_start_time' => date("Y-m-d H:i:s", time()),
-                    'new_api'=>1
+                    'new_api' => 1
 
                 ];
                 $saverecord = CallChatRequest::create($requestData); /// saving chat request
                 if ($saverecord) {
                     $saverecord->expert_details = $astrodata;
                     $user_image = !empty($checkUser->image)
-                        ? image_url($checkUser->image,'/public/cms-images/user-images/')
+                        ? image_url($checkUser->image, '/public/cms-images/user-images/')
                         : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
                     // $status =$request_status== 2 ?  "active" :"complete" ;
                     $saverecord->form_meta = unserialize($saverecord->form_meta);
@@ -830,7 +830,7 @@ class ChatAndCallController extends Controller
                 return ApiResponse(403, false, $checkalreadychat);
             }
             CallChatRequest::CancelActiveAllCallChat($request->user_id); // disabale all active chat for this user
-            $checkUser = User::select('users.user_type', 'users_details.balance_amount', 'users.id', 'users.image','users_details.profile_image as image')->join('users_details', 'users_details.user_id', '=', 'users.id')->where('users.id', $request->user_id)->first();
+            $checkUser = User::select('users.user_type', 'users_details.balance_amount', 'users.id', 'users.image', 'users_details.profile_image as image')->join('users_details', 'users_details.user_id', '=', 'users.id')->where('users.id', $request->user_id)->first();
             $astrodata = $this->getAstroDetails($request->expert_id);
             if ($checkUser->user_type == "USER" && !empty($astrodata)) {
                 $CheckAstroBusy = $this->CheckAstroBusy($astrodata->id);
@@ -867,13 +867,13 @@ class ChatAndCallController extends Controller
                     'request_expired' => date("Y-m-d H:i:s", strtotime("+1 day", time())),
                     'request_status' => $request_status,
                     'user_start_time' => date("Y-m-d H:i:s", time()),
-                    'new_api'=>1
+                    'new_api' => 1
                 ];
                 $saverecord = CallChatRequest::create($requestData); /// saving chat request
                 if ($saverecord) {
                     $saverecord->expert_details = $astrodata;
                     $user_image = !empty($checkUser->image)
-                        ? image_url($checkUser->image,'/public/cms-images/user-images/')
+                        ? image_url($checkUser->image, '/public/cms-images/user-images/')
                         : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
                     // $status =$request_status== 2 ?  "active" :"complete" ;
                     $status = "initiate";
@@ -964,13 +964,13 @@ class ChatAndCallController extends Controller
                     'request_expired' => date("Y-m-d H:i:s", strtotime("+1 day", time())),
                     'request_status' => $request_status,
                     'user_start_time' => date("Y-m-d H:i:s", time()),
-                    'new_api'=>1
+                    'new_api' => 1
                 ];
                 $saverecord = CallChatRequest::create($requestData); /// saving chat request
                 if ($saverecord) {
                     $saverecord->expert_details = $astrodata;
                     $user_image = !empty($checkUser->image)
-                        ? image_url($checkUser->image,'/public/cms-images/user-images/')
+                        ? image_url($checkUser->image, '/public/cms-images/user-images/')
                         : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
                     // $status =$request_status== 2 ?  "active" :"complete" ;
                     $status = "initiate";
@@ -1027,20 +1027,20 @@ class ChatAndCallController extends Controller
                     $notificationarray = [
                         'title' => 'New Message from ' . $getuser->name . '',
                         'message' => $request->message,
-                        'image' => image_url($getuser->image,'/public/cms-images/user-images/'),
+                        'image' => image_url($getuser->image, '/public/cms-images/user-images/'),
                         'type' => 'chat',
                         'senderid' => $getuser->id
 
                     ];
-                    if(!empty($getfcmtoken)){
+                    if (!empty($getfcmtoken)) {
 
                         FireBaseActionController::PushNOtificationAuthdata($getfcmtoken, $notificationarray);
                     }
                 }
-                $time=date('Y-m-d H:i:s',time());
+                $time = date('Y-m-d H:i:s', time());
 
-                if(!empty($request->time)){
-                    $time=date('Y-m-d H:i:s',strtotime($request->time));
+                if (!empty($request->time)) {
+                    $time = date('Y-m-d H:i:s', strtotime($request->time));
                 }
                 $user_id = $request->user_id;
                 $obj = new ChatMessages();
@@ -1053,12 +1053,57 @@ class ChatAndCallController extends Controller
                 $obj->fileurl = $request->image ? $request->image : '';
 
                 $obj->save();
-                    return $notificationarray;
+                return $notificationarray;
 
                 return ApiResponse(200, true, 'success', $obj);
             } else {
                 return SimpleResponse(404, false, 'Invalid user id');
             }
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+        }
+    }
+
+    public function save_chat_bulk(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'messages' => 'required|array',
+                'messages.*.messageId' => 'required',
+                'messages.*.room_id' => 'required',
+                'messages.*.user_id' => 'required|exists:users,id',
+                'messages.*.time' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return errorResponse($validator->errors());
+            }
+
+            $messagesToInsert = [];
+            $currentTime = date('Y-m-d H:i:s');
+
+            foreach ($request->messages as $msg) {
+                $time = !empty($msg['time']) ? date('Y-m-d H:i:s', strtotime($msg['time'])) : $currentTime;
+
+                $messagesToInsert[] = [
+                    'user_id' => $msg['user_id'],
+                    'messageId' => $msg['messageId'],
+                    'message' => $msg['message'] ?? '',
+                    'request_session_id' => $msg['room_id'],
+                    'status' => $msg['status'] ?? 'sent',
+                    'time' => $time,
+                    'fileurl' => $msg['image'] ?? '',
+                    'created_at' => $currentTime,
+                    'updated_at' => $currentTime
+                ];
+            }
+
+            if (!empty($messagesToInsert)) {
+                ChatMessages::insert($messagesToInsert);
+                return ApiResponse(200, true, 'success', count($messagesToInsert) . ' messages saved');
+            }
+
+            return ApiResponse(200, true, 'no messages to save');
         } catch (\Throwable $th) {
             return InternalError($th->getMessage());
         }
@@ -1083,7 +1128,7 @@ class ChatAndCallController extends Controller
                             ->get()
                             ->transform(function ($poojaItem) {
                                 $poojaItem->image_url = $poojaItem->image
-                                    ? image_url($poojaItem->image,$poojaItem->image_path)
+                                    ? image_url($poojaItem->image, $poojaItem->image_path)
                                     : asset('cms-images/default/default.jpg');
                                 return $poojaItem;
                             });
@@ -1188,12 +1233,12 @@ class ChatAndCallController extends Controller
                 }
 
                 $checkUser = User::find($getsession->user_id);
-                
 
-                $user_image = !empty(!$checkUser->image) ? image_url($checkUser->image,'/public/cms-images/user-images/') : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
+
+                $user_image = !empty(!$checkUser->image) ? image_url($checkUser->image, '/public/cms-images/user-images/') : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
 
                 $astrodetails = User::find($getsession->expert_id);
-                $astro_image = !empty(!$astrodetails->image) ? image_url($astrodetails->image,'/public/cms-images/user-images/') : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
+                $astro_image = !empty(!$astrodetails->image) ? image_url($astrodetails->image, '/public/cms-images/user-images/') : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
 
 
                 FireBaseActionController::SwitchSessionEvents($getsession->expert_id, $getsession->user_id, $getsession->user_name, $user_image, $sessionid, 'Initiate', $request->switch_to, $astrodetails->name, $astro_image, '');
@@ -1546,36 +1591,33 @@ class ChatAndCallController extends Controller
                 $user_image = !empty(!$checkUser->image) ? "https://astro-api.iqsetters.in/public/cms-images/user-images/$checkUser->image" : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
                 FireBaseActionController::new_notification_firbase_hits_ivent($requestype, $chatid, $astrodata->id, $checksession->user_name);
 
-                if($requestype !='Calling'){
+                if ($requestype != 'Calling') {
                     try {
-                    $response = Http::post(
-                        env('SOCKET_SERVER_URL', 'http://localhost:65282') . '/update-server-timer',
-                        [
-                            'room'    => $chatid,
-                            'endTime' => $end_time
-                        ]
-                    );
+                        $response = Http::post(
+                            env('SOCKET_SERVER_URL', 'http://localhost:65282') . '/update-server-timer',
+                            [
+                                'room'    => $chatid,
+                                'endTime' => $end_time
+                            ]
+                        );
 
                         // Call only if API response is successful (200–299)
                         if ($response->successful()) {
                             FireBaseActionController::AstrologerConsultUpdate($astrodata->id, $checkUser->id, $checksession->user_name, $user_image, $checkUser->balance_amount, $requestype, $chatid, $status, $currentTime, $end_time);
-
                         } else {
                             \Log::error('Socket API failed', [
                                 'status' => $response->status(),
                                 'body'   => $response->body()
                             ]);
                         }
-
-                        } catch (\Throwable $e) {
-                            \Log::error("Socket Timer Init Failed: " . $e->getMessage());
-                        }
-                }else{
-                 FireBaseActionController::AstrologerConsultUpdate($astrodata->id, $checkUser->id, $checksession->user_name, $user_image, $checkUser->balance_amount, $requestype, $chatid, $status, $currentTime, $end_time);
-
+                    } catch (\Throwable $e) {
+                        \Log::error("Socket Timer Init Failed: " . $e->getMessage());
+                    }
+                } else {
+                    FireBaseActionController::AstrologerConsultUpdate($astrodata->id, $checkUser->id, $checksession->user_name, $user_image, $checkUser->balance_amount, $requestype, $chatid, $status, $currentTime, $end_time);
                 }
 
-                 
+
 
 
 
@@ -1604,13 +1646,13 @@ class ChatAndCallController extends Controller
 
             $getdata = CallChatRequest::join('mst_order_status', 'mst_order_status.order_status_id', '=', 'call_chat_request.request_status')
                 ->join('users', 'users.id', '=', 'call_chat_request.expert_id')
-               
-                 ->leftJoin(
-        'users as userdata',
-        'userdata.id',
-        '=',
-        'call_chat_request.user_id'
-    )
+
+                ->leftJoin(
+                    'users as userdata',
+                    'userdata.id',
+                    '=',
+                    'call_chat_request.user_id'
+                )
 
                 ->select(
                     'call_chat_request.*',
@@ -1654,7 +1696,7 @@ class ChatAndCallController extends Controller
             $getdata->socket_url = env('SOCKET_SERVER_URL');
 
             $getdata->image = !empty($getdata->image)
-                ? image_url($getdata->image,'/public/cms-images/user-images/')
+                ? image_url($getdata->image, '/public/cms-images/user-images/')
                 : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
 
             return ApiResponse(200, true, 'fetch successfully', $getdata);
@@ -1679,7 +1721,7 @@ class ChatAndCallController extends Controller
                 ->update(['status' => $request->status]);
             return ApiResponse(200, true, 'success', $updateChatseen);
         } catch (\Throwable $th) {
-                 return InternalError($th->getMessage());
+            return InternalError($th->getMessage());
         }
     }
 
@@ -1696,58 +1738,58 @@ class ChatAndCallController extends Controller
 
             return ApiResponse(200, true, 'success', $getdata);
         } catch (\Throwable $th) {
-                return InternalError($th->getMessage());
+            return InternalError($th->getMessage());
         }
     }
 
     public function getconsultreview(Request $request)
     {
         try {
-            
-        $consultId = $request->consult_id;
 
-        if (!$consultId) {
+            $consultId = $request->consult_id;
+
+            if (!$consultId) {
+                return response()->json([
+                    'statusCode' => 400,
+                    'status'     => false,
+                    'message'    => 'consult_id is required.'
+                ]);
+            }
+
+            $review = DB::table('review')
+                ->leftJoin('users', 'users.id', '=', 'review.user_id')
+                ->where('review.consult_id', $consultId)
+                ->orderByDesc('review.id')
+                ->limit(1)
+                ->select(
+                    'review.*',
+                    'users.name as user_name',
+                    'users.image as user_image'
+                )
+                ->first();
+
+            if ($review) {
+                // Custom user image path with fallback
+                $review->user_image = !empty($review->user_image)
+                    ?  image_url($review->image, '/public/cms-images/user-images/')
+                    : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
+
+                return response()->json([
+                    'statusCode' => 200,
+                    'status'     => true,
+                    'message'    => 'Review found.',
+                    'data'       => $review
+                ]);
+            }
+
             return response()->json([
-                'statusCode' => 400,
+                'statusCode' => 404,
                 'status'     => false,
-                'message'    => 'consult_id is required.'
+                'message'    => 'No review found for this consult_id.'
             ]);
-        }
-
-        $review = DB::table('review')
-            ->leftJoin('users', 'users.id', '=', 'review.user_id')
-            ->where('review.consult_id', $consultId)
-            ->orderByDesc('review.id')
-            ->limit(1)
-            ->select(
-                'review.*',
-                'users.name as user_name',
-                'users.image as user_image'
-            )
-            ->first();
-
-        if ($review) {
-            // Custom user image path with fallback
-            $review->user_image = !empty($review->user_image)
-                ?  image_url($review->image,'/public/cms-images/user-images/')
-                : "https://wallpapers.com/images/hd/cool-profile-picture-minion-13pu7815v42uvrsg.jpg";
-
-            return response()->json([
-                'statusCode' => 200,
-                'status'     => true,
-                'message'    => 'Review found.',
-                'data'       => $review
-            ]);
-        }
-
-        return response()->json([
-            'statusCode' => 404,
-            'status'     => false,
-            'message'    => 'No review found for this consult_id.'
-        ]);
         } catch (\Throwable $th) {
             //throw $th;
-                return InternalError($th->getMessage());
+            return InternalError($th->getMessage());
         }
     }
 }

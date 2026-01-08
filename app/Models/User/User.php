@@ -561,6 +561,7 @@ class User extends Authenticatable implements JWTSubject
 
         $imagepath =  Storage::disk('s3')->putFileAs('public/cms-images/user-images', $request->file('profile_image'), $imageName);
 
+
         $checkuser->image = $imageName;
 
         // new code if image is wrong
