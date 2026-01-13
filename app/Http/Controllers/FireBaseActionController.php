@@ -859,15 +859,18 @@ class FireBaseActionController extends Controller
         //echo "<pre>";print_r($response);
 
         curl_close($curl);
+
+        FireBaseActionController::MarkeFirebaseNotification($payload);
+
         return true;
     }
 
-    public static function MarkeFirebaseNotification($senderid, $data = [])
+    public static function MarkeFirebaseNotification($data = [])
     {
-        $url = "https://firestore.googleapis.com/v1/projects/astroeranew/databases/(default)/documents/notification_fired/$senderid?updateMask.fieldPaths=notification_data";
+        $url = "https://firestore.googleapis.com/v1/projects/astroeranew/databases/(default)/documents/notification_fired/notification?updateMask.fieldPaths=notification_data";
 
         $payload = [
-            "name" => "projects/astroeranew/databases/(default)/documents/notification_fired/$senderid",
+            "name" => "projects/astroeranew/databases/(default)/documents/notification_fired/notification",
             "fields" => [
                 "notification_data" => [
                     "stringValue" => json_encode($data)

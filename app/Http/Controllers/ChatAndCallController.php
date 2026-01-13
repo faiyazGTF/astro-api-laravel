@@ -1102,7 +1102,6 @@ class ChatAndCallController extends Controller
                 ];
                 if (!empty($getfcmtoken)) {
                     $notificationResult = FireBaseActionController::PushNOtificationAuthdata($getfcmtoken, $notificationarray);
-                    FireBaseActionController::MarkeFirebaseNotification($senderData->id, $notificationarray);
                 }
                 return ApiResponse(200, true, 'success', $notificationarray);
             } else {
