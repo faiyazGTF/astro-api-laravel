@@ -1064,6 +1064,55 @@ class ChatAndCallController extends Controller
         }
     }
 
+    public function sendMessageNotification(Request $request)
+    {
+
+        try {
+            $validator = Validator::make($request->all(), [
+                'messageId' => 'required',
+                'room_id' => 'required',
+                'sender_id' => 'required',
+                "message" => "required",
+
+            ]);
+            if ($validator->fails()) {
+                return errorResponse($validator->errors());
+            }
+            $senderData = User::find($request->sender_id);
+            if ($senderData) {
+                $getsession = CallChatRequest::where('request_session_id', $request->room_id)->first();
+                if (!empty($getsession)) {
+                    if ($senderData->user_type == 'USER') {
+                        $getfcmtoken = getFcmToken($getsession->expert_id);
+                        $receiverData = User::find($getsession->expert_id);
+                    } else {
+                        $getfcmtoken = getFcmToken($getsession->user_id);
+                        $receiverData = User::find($getsession->user_id);
+                    }
+                }
+
+                $notificationarray = [
+                    'title' => 'New Message from ' . $senderData->name . '',
+                    'message' => $request->message,
+                    'image' => image_url($senderData->image, '/public/cms-images/user-images/'),
+                    'type' => 'chat',
+                    'senderid' => $senderData->id,
+                    'reciever_id' => $receiverData->id,
+
+                ];
+                if (!empty($getfcmtoken)) {
+                    $notificationResult = FireBaseActionController::PushNOtificationAuthdata($getfcmtoken, $notificationarray);
+                    FireBaseActionController::MarkeFirebaseNotification($senderData->id, $notificationarray);
+                }
+                return ApiResponse(200, true, 'success', $notificationarray);
+            } else {
+                return SimpleResponse(404, false, 'Invalid user id');
+            }
+        } catch (\Throwable $th) {
+            return InternalError($th->getMessage());
+        }
+    }
+
     public function save_chat_bulk(Request $request)
     {
         try {

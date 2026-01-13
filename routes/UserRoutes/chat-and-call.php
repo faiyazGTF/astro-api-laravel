@@ -13,6 +13,8 @@ Route::group(['prefix' => 'user'], function () {
         Route::post('start', [ChatAndCallController::class, 'StartChat']);
         Route::post('end', [ChatAndCallController::class, 'endChat']);
         Route::post('save', [ChatAndCallController::class, 'save_chat']);
+        Route::post('sendMessage-notification', [ChatAndCallController::class, 'sendMessageNotification']);
+
         Route::post('save-bulk', [ChatAndCallController::class, 'save_chat_bulk']);
         Route::post('change-message-status', [ChatAndCallController::class, 'ChangeMessageStatus']);
         Route::get('consult-history/{user_id}', [ChatAndCallController::class, 'ConsultHistory']);
