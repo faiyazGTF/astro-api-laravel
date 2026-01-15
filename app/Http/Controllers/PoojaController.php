@@ -93,6 +93,10 @@ class PoojaController extends Controller
                 $address_details = json_decode($user_details->address_details);
                 if (!empty($address_details->lat) && !empty($address_details->lng)) {
                     $billingaddressdetails = getLocationByLatLong($address_details->lat, $address_details->lng);
+                    if (!empty($billingaddressdetails['state'])) {
+                        $billingaddressdetails['state']['name'] = $user_details->address;
+                        $billingaddressdetails['state']['id'] = $user_details->state;
+                    }
                 } else {
                     $billingaddressdetails = getLocationByLatLong($latitute, $longtitute);
                 }
@@ -123,10 +127,6 @@ class PoojaController extends Controller
                 $subTotalAmount = $amount - $discount;
                 $taxAmount = round(($subTotalAmount * $taxPercentage) / 100, 2);
                 $totalAmount = $subTotalAmount + $taxAmount + $productData->shipping_charge;
-
-
-
-
                 $order_id = 'OD' . time() . rand(100, 999);
                 $product_type = 'product';
                 $device_type = $request->device_type ? $request->device_type : 1;

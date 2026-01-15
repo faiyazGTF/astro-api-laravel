@@ -17,7 +17,7 @@ class UsersDetail extends Model
 {
     use HasFactory;
 
-    public static $lang="en";
+    public static $lang = "en";
     public function city()
     {
         return $this->belongsTo(Cities::class, 'city');
@@ -35,7 +35,7 @@ class UsersDetail extends Model
 
     public function label()
     {
-        return $this->belongsTo(AstroLabel::class, 'label')->select('title','id');
+        return $this->belongsTo(AstroLabel::class, 'label')->select('title', 'id');
     }
     public static function getChatAstroList($request, $type = "")
     {
@@ -132,18 +132,18 @@ class UsersDetail extends Model
         // if ($request->filled('experience')) {
         //     $condtions = $astroQuery->orderBy('users_details.experience', $expericetype);
         // } else {
-           
+
         // }
-         $condtions = $astroQuery
-                ->orderBy('users_details.availability','DESC')
-                ->orderBy('users_details.experience', $expericetype)
-            
+        $condtions = $astroQuery
+            ->orderBy('users_details.availability', 'DESC')
+            ->orderBy('users_details.experience', $expericetype)
+
             ->orderBy('is_promotional_accept', 'DESC')
-                ->orderBy('users_details.rating', $ratingtype)
-                ->orderBy('users_details.disc_call_charge', 'ASC')
-                ->orderBy('users_details.top_10s', 'ASC')
-                ->orderByRaw('GREATEST(users_details.disc_call_charge, users_details.disc_chat_charge, users_details.disc_video_charge) ' . $servicecharge);
-        $orderby=$condtions->groupBy('users.id')->paginate($perPage);
+            ->orderBy('users_details.rating', $ratingtype)
+            ->orderBy('users_details.disc_call_charge', 'ASC')
+            ->orderBy('users_details.top_10s', 'ASC')
+            ->orderByRaw('GREATEST(users_details.disc_call_charge, users_details.disc_chat_charge, users_details.disc_video_charge) ' . $servicecharge);
+        $orderby = $condtions->groupBy('users.id')->paginate($perPage);
 
         $astroIds = $orderby->pluck('user_id')->toArray();
         $waitTimes = getWaitingTimeshortBulk($astroIds); // once only
@@ -213,7 +213,7 @@ class UsersDetail extends Model
             // Optimized Lookups
             $details['state'] = $states[$astr->state] ?? null; // Was: getStateName($astr->state)
             $details['country'] = $countries[$astr->country] ?? null; // Was: getCountyName($astr->country)
-            
+
             $details['astro_call_charges'] = $astr->astro_call_charges;
             $details['astro_chat_charges'] = $astr->astro_chat_charges;
             $details['disc_call_charge'] = $astr->disc_call_charge;
@@ -272,120 +272,117 @@ class UsersDetail extends Model
 
 
 
-public static  function getAstroList($sqlconditions=[]){
-       
+    public static  function getAstroList($sqlconditions = [])
+    {
+
         // $typedata = !empty($type) ? "FIND_IN_SET('$type', users_details.flags)" : "";
 
-        $perPage =10;
-       
+        $perPage = 10;
+
         $astro = DB::table('users')
-        ->select([
-            'users.id AS user_id',
-            'users.name',
-            'users.mobile',
-            'users.image',
-            'users.user_type',
-            'users.astroera_account',
-            'users_details.profile_name_en',
-            'users_details.profile_name_hn',
-            'users_details.specialisation',
-            'users_details.languages',
-            'users_details.experience',
-            'users_details.is_login',
-            'users_details.availability',
-            'users_details.flags',
-            'users_details.rating',
-            'users_details.slug',
-            'users_details.state',
-            'users_details.country',
-            'users_details.astro_call_charges',
-            'users_details.astro_chat_charges',
-            'users_details.disc_call_charge',
-            'users_details.disc_chat_charge',
-            'users_details.image_path',
-            'users_details.profile_image',
-            'users_details.is_promotional_accept',
-            'users_details.label',
-            DB::raw('AVG(review.rating) as avg_review_rating'),
-            
-           
-        ])
-        ->leftJoin('users_details', 'users_details.user_id', '=', 'users.id')
-        ->leftJoin('review', 'review.to_experts', '=', 'users.id') // Join with reviews table
-        ->join('mst_specialisation AS b', DB::raw('FIND_IN_SET(b.id, users_details.specialisation)'), '>', DB::raw('0'))
-        ->whereNotIn('users.id', [2, 68, 45, 89, 90, 5377])
-        ->where('users.status', 1)
-        ->where('users.is_signup_complete', 1)
-        ->where('users.user_type', 'ASTROLOGER')
-        ->where('users.astroera_account', 0)
-        
+            ->select([
+                'users.id AS user_id',
+                'users.name',
+                'users.mobile',
+                'users.image',
+                'users.user_type',
+                'users.astroera_account',
+                'users_details.profile_name_en',
+                'users_details.profile_name_hn',
+                'users_details.specialisation',
+                'users_details.languages',
+                'users_details.experience',
+                'users_details.is_login',
+                'users_details.availability',
+                'users_details.flags',
+                'users_details.rating',
+                'users_details.slug',
+                'users_details.state',
+                'users_details.country',
+                'users_details.astro_call_charges',
+                'users_details.astro_chat_charges',
+                'users_details.disc_call_charge',
+                'users_details.disc_chat_charge',
+                'users_details.image_path',
+                'users_details.profile_image',
+                'users_details.is_promotional_accept',
+                'users_details.label',
+                DB::raw('AVG(review.rating) as avg_review_rating'),
 
 
-        ->when($sqlconditions, function ($query, $querydata) {
-                
-            for ($i=0; $i <count($querydata); $i++) { 
-                $query->whereRaw($querydata[$i]);
-            }
-            
-        })
-       
-        ->orderBy('users_details.availability', 'DESC')
-        ->orderBy('users_details.disc_call_charge', 'ASC')
-        ->orderBy('users_details.top_10s', 'ASC')
-        ->groupBy('users.id')
+            ])
+            ->leftJoin('users_details', 'users_details.user_id', '=', 'users.id')
+            ->leftJoin('review', 'review.to_experts', '=', 'users.id') // Join with reviews table
+            ->join('mst_specialisation AS b', DB::raw('FIND_IN_SET(b.id, users_details.specialisation)'), '>', DB::raw('0'))
+            ->whereNotIn('users.id', [2, 68, 45, 89, 90, 5377])
+            ->where('users.status', 1)
+            ->where('users.is_signup_complete', 1)
+            ->where('users.user_type', 'ASTROLOGER')
+            ->where('users.astroera_account', 0)
 
 
-        ->paginate($perPage);
 
-            $experts = array();
+            ->when($sqlconditions, function ($query, $querydata) {
 
-            
-
-            foreach ($astro as $astr) {
-
-                $details['user_id'] = $astr->user_id;
-                $details['name'] = $astr->name;
-                $details['language_name'] = $astr->languages;
-
-
-                if(self::$lang=='hi' && !empty($astr->profile_name_hn)){
-                    $details['name'] = $astr->profile_name_hn;
+                for ($i = 0; $i < count($querydata); $i++) {
+                    $query->whereRaw($querydata[$i]);
                 }
+            })
 
-                $details['mobile'] = $astr->mobile;
-                $details['image'] =image_url($astr->image,$astr->image_path);
-                
+            ->orderBy('users_details.availability', 'DESC')
+            ->orderBy('users_details.disc_call_charge', 'ASC')
+            ->orderBy('users_details.top_10s', 'ASC')
+            ->groupBy('users.id')
 
-                $details['user_type'] = $astr->user_type;
-         
-                $details['experience'] = $astr->experience;
-                $details['is_login'] = $astr->is_login;
-                $details['availability'] = $astr->availability;
-                $details['flags'] = $astr->flags;
-                $details['rating'] = $astr->rating;
-                $details['slug'] = $astr->slug;
-                $details['state'] = getStateName($astr->state);
-                $details['country'] = getCountyName($astr->country);
-                $details['astro_call_charges'] = $astr->astro_call_charges;
-                $details['astro_chat_charges'] = $astr->astro_chat_charges;
-                $details['disc_call_charge'] = $astr->disc_call_charge;
-                $details['disc_chat_charge'] = $astr->disc_chat_charge;
-                $details['is_promotional_accept'] = $astr->is_promotional_accept;
-                $details['label'] = $astr->label;
-                $details['skills'] = implode(',',explodespecialization($astr->specialisation,self::$lang));
-                $details['language_name'] = explodesLanguage($astr->languages);
-                $details['wait_time'] = getWaitingTimeshort($astr->user_id);
-                $details['avg_review_rating'] = round($astr->avg_review_rating, 2);
-                $experts[] = $details;
+
+            ->paginate($perPage);
+
+        $experts = array();
+
+
+
+        foreach ($astro as $astr) {
+
+            $details['user_id'] = $astr->user_id;
+            $details['name'] = $astr->name;
+            $details['language_name'] = $astr->languages;
+
+
+            if (self::$lang == 'hi' && !empty($astr->profile_name_hn)) {
+                $details['name'] = $astr->profile_name_hn;
             }
+
+            $details['mobile'] = $astr->mobile;
+            $details['image'] = image_url($astr->image, $astr->image_path);
+
+
+            $details['user_type'] = $astr->user_type;
+
+            $details['experience'] = $astr->experience;
+            $details['is_login'] = $astr->is_login;
+            $details['availability'] = $astr->availability;
+            $details['flags'] = $astr->flags;
+            $details['rating'] = $astr->rating;
+            $details['slug'] = $astr->slug;
+            $details['state'] = getStateName($astr->state);
+            $details['country'] = getCountyName($astr->country);
+            $details['astro_call_charges'] = $astr->astro_call_charges;
+            $details['astro_chat_charges'] = $astr->astro_chat_charges;
+            $details['disc_call_charge'] = $astr->disc_call_charge;
+            $details['disc_chat_charge'] = $astr->disc_chat_charge;
+            $details['is_promotional_accept'] = $astr->is_promotional_accept;
+            $details['label'] = $astr->label;
+            $details['skills'] = implode(',', explodespecialization($astr->specialisation, self::$lang));
+            $details['language_name'] = explodesLanguage($astr->languages);
+            $details['wait_time'] = getWaitingTimeshort($astr->user_id);
+            $details['avg_review_rating'] = round($astr->avg_review_rating, 2);
+            $experts[] = $details;
+        }
 
         return $experts;
-
-
-
     }
-	
-	 public static function getAstroListSimple($sqlconditions = [])
+
+    public static function getAstroListSimple($sqlconditions = [])
     {
         $astro = DB::table('users')
             ->select([
@@ -437,7 +434,7 @@ public static  function getAstroList($sqlconditions=[]){
             $details['user_id'] = $astr->user_id;
             $details['name'] = self::$lang == 'hi' && !empty($astr->profile_name_hn) ? $astr->profile_name_hn : $astr->name;
             $details['mobile'] = $astr->mobile;
-            $details['image'] =image_url($astr->image,'/public/cms-images/user-images/');
+            $details['image'] = image_url($astr->image, '/public/cms-images/user-images/');
             $details['user_type'] = $astr->user_type;
             $details['experience'] = $astr->experience;
             $details['is_login'] = $astr->is_login;
@@ -456,7 +453,7 @@ public static  function getAstroList($sqlconditions=[]){
 
             $details['skills'] = implode(',', explodespecialization($astr->specialisation, self::$lang));
             $details['language_name'] = explodesLanguage($astr->languages);
-           // $details['wait_time'] = getWaitingTimeshort($astr->user_id);
+            // $details['wait_time'] = getWaitingTimeshort($astr->user_id);
             $details['avg_review_rating'] = round($astr->avg_review_rating, 2);
 
             $experts[] = $details;
@@ -465,7 +462,7 @@ public static  function getAstroList($sqlconditions=[]){
         return $experts;
     }
 
-		 public static function getAstroListSimple2($sqlconditions = [])
+    public static function getAstroListSimple2($sqlconditions = [])
     {
         $astro = DB::table('users')
             ->select([
@@ -517,7 +514,7 @@ public static  function getAstroList($sqlconditions=[]){
             $details['user_id'] = $astr->user_id;
             $details['name'] = self::$lang == 'hi' && !empty($astr->profile_name_hn) ? $astr->profile_name_hn : $astr->name;
             $details['mobile'] = $astr->mobile;
-            $details['image'] = image_url($astr->image,'/public/cms-images/user-images/');
+            $details['image'] = image_url($astr->image, '/public/cms-images/user-images/');
             $details['user_type'] = $astr->user_type;
             $details['experience'] = $astr->experience;
             $details['is_login'] = $astr->is_login;
@@ -536,7 +533,7 @@ public static  function getAstroList($sqlconditions=[]){
 
             $details['skills'] = implode(',', explodespecialization($astr->specialisation, self::$lang));
             $details['language_name'] = explodesLanguage($astr->languages);
-           // $details['wait_time'] = getWaitingTimeshort($astr->user_id);
+            // $details['wait_time'] = getWaitingTimeshort($astr->user_id);
             $details['avg_review_rating'] = round($astr->avg_review_rating, 2);
 
             $experts[] = $details;
@@ -544,55 +541,55 @@ public static  function getAstroList($sqlconditions=[]){
 
         return $experts;
     }
-	
-	public static function getAstroListSimple3($sqlconditions = [], $chatCountSubquery = null)
+
+    public static function getAstroListSimple3($sqlconditions = [], $chatCountSubquery = null)
     {
-       $astro = DB::table('users')
-    ->select([
-        'users.id AS user_id',
-        'users.name',
-        'users.mobile',
-        'users.image',
-        'users.user_type',
-        'users_details.profile_name_en',
-        'users_details.profile_name_hn',
-        'users_details.specialisation',
-        'users_details.languages',
-        'users_details.experience',
-        'users_details.is_login',
-        'users_details.availability',
-        'users_details.flags',
-        'users_details.rating',
-        'users_details.slug',
-        'users_details.state',
-        'users_details.country',
-        'users_details.astro_call_charges',
-        'users_details.astro_chat_charges',
-        'users_details.disc_call_charge',
-        'users_details.disc_chat_charge',
-        'users_details.image_path',
-        'users_details.profile_image',
-        'users_details.is_promotional_accept',
-        'users_details.label',
-        DB::raw('(SELECT AVG(rating) FROM review WHERE to_experts = users.id) AS avg_review_rating'),
-        DB::raw('IFNULL(cc.chat_count, 0) AS chat_count')  // 👈 chat count
-    ])
-    ->leftJoin('users_details', 'users_details.user_id', '=', 'users.id')
-    ->leftJoinSub($chatCountSubquery, 'cc', 'cc.expert_id', '=', 'users.id') // 👈 join subquery
-    ->whereNotIn('users.id', [2, 68, 45, 89, 90, 5377])
-    ->where('users.status', 1)
-    ->where('users.is_signup_complete', 1)
-    ->where('users.user_type', 'ASTROLOGER')
-    ->where('users.astroera_account', 0)
-    ->when($sqlconditions, function ($query, $querydata) {
-        foreach ($querydata as $raw) {
-            $query->whereRaw($raw);
-        }
-    })
-    ->orderByDesc('chat_count')
-    ->orderBy('users.name', 'ASC') // 👈 order by user name
-    ->limit(10)
-    ->get();
+        $astro = DB::table('users')
+            ->select([
+                'users.id AS user_id',
+                'users.name',
+                'users.mobile',
+                'users.image',
+                'users.user_type',
+                'users_details.profile_name_en',
+                'users_details.profile_name_hn',
+                'users_details.specialisation',
+                'users_details.languages',
+                'users_details.experience',
+                'users_details.is_login',
+                'users_details.availability',
+                'users_details.flags',
+                'users_details.rating',
+                'users_details.slug',
+                'users_details.state',
+                'users_details.country',
+                'users_details.astro_call_charges',
+                'users_details.astro_chat_charges',
+                'users_details.disc_call_charge',
+                'users_details.disc_chat_charge',
+                'users_details.image_path',
+                'users_details.profile_image',
+                'users_details.is_promotional_accept',
+                'users_details.label',
+                DB::raw('(SELECT AVG(rating) FROM review WHERE to_experts = users.id) AS avg_review_rating'),
+                DB::raw('IFNULL(cc.chat_count, 0) AS chat_count')  // 👈 chat count
+            ])
+            ->leftJoin('users_details', 'users_details.user_id', '=', 'users.id')
+            ->leftJoinSub($chatCountSubquery, 'cc', 'cc.expert_id', '=', 'users.id') // 👈 join subquery
+            ->whereNotIn('users.id', [2, 68, 45, 89, 90, 5377])
+            ->where('users.status', 1)
+            ->where('users.is_signup_complete', 1)
+            ->where('users.user_type', 'ASTROLOGER')
+            ->where('users.astroera_account', 0)
+            ->when($sqlconditions, function ($query, $querydata) {
+                foreach ($querydata as $raw) {
+                    $query->whereRaw($raw);
+                }
+            })
+            ->orderByDesc('chat_count')
+            ->orderBy('users.name', 'ASC') // 👈 order by user name
+            ->limit(10)
+            ->get();
 
         $experts = [];
 
@@ -600,7 +597,7 @@ public static  function getAstroList($sqlconditions=[]){
             $details['user_id'] = $astr->user_id;
             $details['name'] = self::$lang == 'hi' && !empty($astr->profile_name_hn) ? $astr->profile_name_hn : $astr->name;
             $details['mobile'] = $astr->mobile;
-            $details['image'] = image_url($astr->image,'/public/cms-images/user-images/');
+            $details['image'] = image_url($astr->image, '/public/cms-images/user-images/');
             $details['user_type'] = $astr->user_type;
             $details['experience'] = $astr->experience;
             $details['is_login'] = $astr->is_login;
@@ -619,7 +616,7 @@ public static  function getAstroList($sqlconditions=[]){
 
             $details['skills'] = implode(',', explodespecialization($astr->specialisation, self::$lang));
             $details['language_name'] = explodesLanguage($astr->languages);
-           // $details['wait_time'] = getWaitingTimeshort($astr->user_id);
+            // $details['wait_time'] = getWaitingTimeshort($astr->user_id);
             $details['avg_review_rating'] = round($astr->avg_review_rating, 2);
 
             $experts[] = $details;
@@ -634,8 +631,7 @@ public static  function getAstroList($sqlconditions=[]){
 
         return DB::table('mst_specialisation')
             ->whereIn('id', $specialisationIds)
-            ->select('specialisation as english_name','specialisation_hindi as hindi_name')->get()->toArray();
-           
+            ->select('specialisation as english_name', 'specialisation_hindi as hindi_name')->get()->toArray();
     }
 
     public function getLanguageNamesAttribute()
@@ -644,101 +640,93 @@ public static  function getAstroList($sqlconditions=[]){
 
         return DB::table('mst_languages')
             ->whereIn('id', $languagesIds)
-            ->select('language_name as english_name','language_name_hindi as hindi_name')->get()->toArray();
-           
+            ->select('language_name as english_name', 'language_name_hindi as hindi_name')->get()->toArray();
     }
-  
-
- 
-    public static  function getAstroProfile($request,$astroId){
-       $tokenid=$astroId;
 
 
-       $expert = User::with([
-        'userDetail.city',
-        'userDetail.state',
-        'userDetail.country',
-        'userDetail.label',
-        'ReviewBy',
-        
-        'Gallery'
 
-    ])
-        ->select(
-            'users.id as user_id',
-            'users.id',
-            'users.name',
-            'users.mobile',
-            'users.image',
-            'users.user_type',
-            
-        )
- 
-        ->where('users.id', $astroId)
-        ->where('users.status', 1)
-        ->where('users.user_type', 'ASTROLOGER')
-        ->first();
-      
-           
-            if($expert){
-				 
-                $expert->userDetail->specialisation=$expert->userDetail->specialisation_names;
-                $expert->userDetail->languages=$expert->userDetail->language_names;
-                $token = request()->bearerToken();
-                $expert->userDetail->is_following=false;
-				
-				$expert->userDetail->image=image_url($expert->image,$expert->userDetail->image_path);
+    public static  function getAstroProfile($request, $astroId)
+    {
+        $tokenid = $astroId;
 
-                if($token){
-                    $user = JWTAuth::parseToken()->authenticate();
-                
-                    if(!empty($user)){
 
-                        $expert->userDetail->is_following=$expert->isFollowing($user->id);
-                    }
-                   
-                    
-                 
+        $expert = User::with([
+            'userDetail.city',
+            'userDetail.state',
+            'userDetail.country',
+            'userDetail.label',
+            'ReviewBy',
+
+            'Gallery'
+
+        ])
+            ->select(
+                'users.id as user_id',
+                'users.id',
+                'users.name',
+                'users.mobile',
+                'users.image',
+                'users.user_type',
+
+            )
+
+            ->where('users.id', $astroId)
+            ->where('users.status', 1)
+            ->where('users.user_type', 'ASTROLOGER')
+            ->first();
+
+
+        if ($expert) {
+
+            $expert->userDetail->specialisation = $expert->userDetail->specialisation_names;
+            $expert->userDetail->languages = $expert->userDetail->language_names;
+            $token = request()->bearerToken();
+            $expert->userDetail->is_following = false;
+
+            $expert->userDetail->image = image_url($expert->image, $expert->userDetail->image_path);
+
+            if ($token) {
+                $user = JWTAuth::parseToken()->authenticate();
+
+                if (!empty($user)) {
+
+                    $expert->userDetail->is_following = $expert->isFollowing($user->id);
                 }
-				$expert->image = image_url($expert->image,$expert->userDetail->image_path);
-                $expert->Gallery->transform(function ($gallery) {
-                    $gallery->full_image_url =image_url($gallery->image,$gallery->image_path);
-                    return $gallery;
-                });
-               
-              if ($expert->ReviewBy) {
-                    $expert->ReviewBy->transform(function ($review) {
-                        if ($review->user) {
-                            $review->user->image =image_url($review->user->image,'/public/cms-images/user-images/');
-                        }
-                        return $review;
-                    });
-                }
- 				//$expert->wait_time = getWaitingTimeshort($expert->id);
-
-                // ⭐ Add avg review rating here
-                $avgRating = DB::table('review')
-                    ->where('to_experts', $astroId)
-                    ->avg('rating');
-                $expert->avg_review_rating = $avgRating ? round($avgRating, 1) : 0.0;
-                $expert->userDetail->rating= $avgRating ? round($avgRating, 1) : 0.0;
-                
-                return response()->json([
-                    'statusCode'=>200,
-                    'status'=>true,
-                    'message'=>'success',
-                    'data'=>$expert
-                ]); 
-        
             }
+            $expert->image = image_url($expert->image, $expert->userDetail->image_path);
+            $expert->Gallery->transform(function ($gallery) {
+                $gallery->full_image_url = image_url($gallery->image, $gallery->image_path);
+                return $gallery;
+            });
+
+            if ($expert->ReviewBy) {
+                $expert->ReviewBy->transform(function ($review) {
+                    if ($review->user) {
+                        $review->user->image = image_url($review->user->image, '/public/cms-images/user-images/');
+                    }
+                    return $review;
+                });
+            }
+            //$expert->wait_time = getWaitingTimeshort($expert->id);
+
+            // ⭐ Add avg review rating here
+            $avgRating = DB::table('review')
+                ->where('to_experts', $astroId)
+                ->avg('rating');
+            $expert->avg_review_rating = $avgRating ? round($avgRating, 1) : 0.0;
+            $expert->userDetail->rating = $avgRating ? round($avgRating, 1) : 0.0;
+
             return response()->json([
-                'statusCode'=>403,
-                'status'=>false,
-                'message'=>'astro not found/or not active ',
-            ]); 
-
-
+                'statusCode' => 200,
+                'status' => true,
+                'message' => 'success',
+                'data' => $expert
+            ]);
+        }
+        return response()->json([
+            'statusCode' => 403,
+            'status' => false,
+            'message' => 'astro not found/or not active ',
+        ]);
     }
-
-
 }
